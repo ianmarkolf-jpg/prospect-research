@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prospect Research — Markolf Capital</title>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:       #08090c;
+  --surface:  #0f1117;
+  --surface2: #161922;
+  --border:   #1c2030;
+  --border2:  #242840;
+  --text:     #d4daf0;
+  --muted:    #4a5275;
+  --dim:      #2a304d;
+  --blue:     #4169ff;
+  --blue-dim: #1a2560;
+  --green:    #00e5a0;
+  --green-dim:#003d28;
+  --amber:    #ffb020;
+  --amber-dim:#3d2800;
+  --red:      #ff4444;
+  --red-dim:  #3d0000;
+  --display:  'Syne', sans-serif;
+  --mono:     'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Auth screen ── */
+#auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 32px;
+  background:
+    radial-gradient(ellipse 60% 40% at 30% 60%, rgba(65,105,255,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 30% at 70% 30%, rgba(0,229,160,0.04) 0%, transparent 70%),
+    var(--bg);
+}
+
+.auth-logo {
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.auth-title {
+  font-family: var(--display);
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--text);
+  text-align: center;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.auth-title span { color: var(--blue); }
+
+.auth-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  letter-spacing: 0.05em;
+  max-width: 320px;
+  line-height: 1.7;
+}
+
+.auth-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.auth-btn:hover { border-color: var(--blue); color: #fff; }
+.auth-btn svg { width: 18px; height: 18px; }
+
+.auth-note {
+  font-size: 10px;
+  color: var(--dim);
+  text-align: center;
+  letter-spacing: 0.06em;
+  line-height: 1.8;
+}
+
+/* ── App layout ── */
+#app { display: none; height: 100vh; flex-direction: column; }
+#app.visible { display: flex; }
+
+/* Topbar */
+.topbar {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  gap: 16px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+.topbar-mark {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.topbar-mark span { color: var(--blue); }
+
+.topbar-divider { width: 1px; height: 20px; background: var(--border2); }
+
+/* Mode switcher */
+.mode-switch {
+  display: flex;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.mode-btn {
+  padding: 5px 14px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.mode-btn.active-tsunami { background: var(--blue-dim); color: var(--blue); }
+.mode-btn.active-flip    { background: var(--green-dim); color: var(--green); }
+
+.topbar-spacer { flex: 1; }
+
+/* Dashboard pills */
+.dash-pills { display: flex; gap: 8px; align-items: center; }
+.dash-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+.dash-pill-label { font-size: 9px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+.dash-pill-val   { font-size: 12px; font-weight: 600; color: var(--text); }
+
+/* User chip */
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.user-chip:hover { border-color: var(--border2); }
+.user-avatar {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--blue-dim);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; color: var(--blue);
+}
+.user-name { font-size: 11px; color: var(--muted); }
+
+/* ── Body layout ── */
+.body-layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  overflow: hidden;
+}
+
+/* ── Left panel ── */
+.left-panel {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.panel-tab {
+  flex: 1;
+  padding: 10px 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: center;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.panel-tab.active { color: var(--text); border-bottom-color: var(--blue); }
+
+.panel-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+/* Form fields */
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.field input, .field select {
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 3px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.field input:focus, .field select:focus { border-color: var(--blue); }
+.field input::placeholder { color: var(--dim); }
+.field select option { background: var(--surface2); }
+
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.section-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+/* Run button */
+.run-btn {
+  width: 100%;
+  padding: 11px 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.run-btn.tsunami { background: var(--blue); color: #fff; }
+.run-btn.flip    { background: var(--green); color: #001a10; }
+.run-btn:hover   { filter: brightness(1.12); transform: translateY(-1px); }
+.run-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; filter: none; }
+.spinner {
+  width: 11px; height: 11px;
+  border: 2px solid rgba(255,255,255,0.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  display: none;
+}
+.run-btn.loading .spinner { display: block; }
+.run-btn.loading .btn-label { opacity: 0.5; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Company list */
+.company-list { display: flex; flex-direction: column; gap: 2px; }
+.company-item {
+  padding: 8px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border: 1px solid transparent;
+}
+.company-item:hover { background: var(--surface2); border-color: var(--border); }
+.company-item.selected { background: var(--blue-dim); border-color: var(--blue); }
+.company-name { font-size: 12px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.company-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.company-score {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 2px;
+  float: right;
+}
+.score-t1 { background: var(--green-dim); color: var(--green); }
+.score-t2 { background: var(--amber-dim); color: var(--amber); }
+.score-lo { background: var(--surface2); color: var(--muted); }
+.score-dq { background: var(--red-dim); color: var(--red); }
+
+/* Filter bar */
+.filter-bar { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-chip {
+  padding: 3px 9px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.15s;
+}
+.filter-chip.active { border-color: var(--blue); color: var(--blue); background: var(--blue-dim); }
+
+/* ── Right panel ── */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.result-header {
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.result-company {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.result-meta { font-size: 11px; color: var(--muted); }
+.result-spacer { flex: 1; }
+
+.save-btn {
+  padding: 6px 14px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid var(--green);
+  border-radius: 3px;
+  background: var(--green-dim);
+  color: var(--green);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: none;
+}
+.save-btn:hover { background: var(--green); color: #001a10; }
+.save-btn.visible { display: inline-flex; align-items: center; gap: 6px; }
+.save-btn.saved { border-color: var(--muted); background: transparent; color: var(--muted); cursor: default; }
+
+.result-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Empty / loading state */
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--dim);
+}
+.empty-glyph {
+  font-size: 40px;
+  opacity: 0.2;
+  font-family: var(--display);
+  font-weight: 800;
+}
+.empty-label {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+/* Result cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.card-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-title {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.card-body { padding: 14px; }
+
+/* Score display */
+.score-hero {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+.score-num {
+  font-family: var(--display);
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.score-denom { font-size: 18px; color: var(--muted); margin-bottom: 8px; }
+
+.score-bars {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 14px;
+}
+.score-bar-item { text-align: center; }
+.score-bar-label { font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.score-bar-track {
+  height: 32px;
+  background: var(--bg);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+.score-bar-fill {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  border-radius: 2px;
+  transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.score-bar-val { font-size: 11px; font-weight: 600; margin-top: 4px; }
+
+/* Info grid */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.info-item { display: flex; flex-direction: column; gap: 4px; }
+.info-label { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.info-val { font-size: 12px; font-weight: 500; color: var(--text); }
+.info-val.positive { color: var(--green); }
+.info-val.warning  { color: var(--amber); }
+.info-val.negative { color: var(--red); }
+
+/* Signals list */
+.signal-list { display: flex; flex-direction: column; gap: 6px; }
+.signal-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.signal-dot { width: 5px; height: 5px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+.signal-dot.green  { background: var(--green); }
+.signal-dot.red    { background: var(--red); }
+.signal-dot.amber  { background: var(--amber); }
+
+/* Notes */
+.notes-text {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text);
+  font-family: var(--mono);
+}
+
+/* Next action */
+.next-action-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-left: 3px solid var(--blue);
+  border-radius: 4px;
+}
+.next-action-block.green { border-left-color: var(--green); }
+.next-action-block.red   { border-left-color: var(--red); }
+.next-action-label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.next-action-text  { font-size: 12px; color: var(--text); line-height: 1.5; }
+
+/* Comps table */
+.comps-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.comps-table th { font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+.comps-table td { padding: 7px 8px; border-bottom: 1px solid var(--border); color: var(--text); }
+.comps-table tr:last-child td { border-bottom: none; }
+
+/* Tier badge */
+.tier-badge {
+  display: inline-flex;
+  padding: 3px 8px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 2px;
+}
+.tier-t1  { background: var(--green-dim); color: var(--green); }
+.tier-t2  { background: var(--amber-dim); color: var(--amber); }
+.tier-low { background: var(--surface2);  color: var(--muted); }
+.tier-dq  { background: var(--red-dim);   color: var(--red); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+</style>
+</head>
+<body>
+
+<!-- ── Auth Screen ── -->
+<div id="auth-screen">
+  <div class="auth-logo">Markolf Capital</div>
+  <div class="auth-title">Prospect<br><span>Research</span></div>
+  <div class="auth-subtitle">
+    Silver Tsunami acquisition intel + Fix &amp; Flip property vetting.<br>
+    Sign in with your Google account to access your tracker.
+  </div>
+  <button class="auth-btn" onclick="handleGoogleLogin()">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+    Sign in with Google
+  </button>
+  <div class="auth-note">
+    Access is restricted to authorized users.<br>
+    Your session stays local — no data is stored externally.
+  </div>
+</div>
+
+<!-- ── App ── -->
+<div id="app">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-mark">M<span>.</span>Capital</div>
+    <div class="topbar-divider"></div>
+    <div class="mode-switch">
+      <button class="mode-btn active-tsunami" id="mode-tsunami" onclick="setMode('tsunami')">⚡ Silver Tsunami</button>
+      <button class="mode-btn" id="mode-flip" onclick="setMode('flip')">⌂ Fix &amp; Flip</button>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="dash-pills">
+      <div class="dash-pill">
+        <div class="dash-pill-label">Researched</div>
+        <div class="dash-pill-val" id="dash-researched">—</div>
+      </div>
+      <div class="dash-pill">
+        <div class="dash-pill-label">Tier 1</div>
+        <div class="dash-pill-val" id="dash-tier1" style="color:var(--green)">—</div>
+      </div>
+      <div class="dash-pill">
+        <div class="dash-pill-label">Contacted</div>
+        <div class="dash-pill-val" id="dash-contacted">—</div>
+      </div>
+    </div>
+    <div class="topbar-divider"></div>
+    <div class="user-chip" onclick="signOut()">
+      <div class="user-avatar" id="user-initial">?</div>
+      <div class="user-name" id="user-name">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="body-layout">
+
+    <!-- Left panel -->
+    <div class="left-panel">
+      <div class="panel-tabs">
+        <button class="panel-tab active" id="tab-research" onclick="showTab('research')">Research</button>
+        <button class="panel-tab" id="tab-pipeline" onclick="showTab('pipeline')">Pipeline</button>
+      </div>
+
+      <!-- Research tab -->
+      <div id="view-research" class="panel-body">
+
+        <!-- Tsunami fields -->
+        <div id="tsunami-fields">
+          <div class="section-label">Company Details</div>
+          <div class="field">
+            <label>Company Name *</label>
+            <input type="text" id="t-company" placeholder="Advance Screw Products, Inc." />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>City</label>
+              <input type="text" id="t-city" placeholder="Milwaukee" />
+            </div>
+            <div class="field">
+              <label>State</label>
+              <input type="text" id="t-state" value="WI" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Year Founded</label>
+              <input type="text" id="t-founded" placeholder="1967" />
+            </div>
+            <div class="field">
+              <label>Est. Revenue</label>
+              <input type="text" id="t-revenue" placeholder="$5M–$9.9M" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Known Certifications</label>
+            <input type="text" id="t-certs" placeholder="AS9100 (ThomasNet listed)" />
+          </div>
+        </div>
+
+        <!-- Flip fields -->
+        <div id="flip-fields" style="display:none">
+          <div class="section-label">Property Details</div>
+          <div class="field">
+            <label>Property Address *</label>
+            <input type="text" id="f-address" placeholder="1234 W Burnham St, Milwaukee WI" />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>List Price</label>
+              <input type="text" id="f-price" placeholder="$185,000" />
+            </div>
+            <div class="field">
+              <label>Type</label>
+              <select id="f-type">
+                <option>Single Family</option>
+                <option>Duplex</option>
+                <option>Multi-Family</option>
+                <option>Condo</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Beds / Bath</label>
+              <input type="text" id="f-beds" placeholder="3bd / 1.5ba" />
+            </div>
+            <div class="field">
+              <label>Sq Ft</label>
+              <input type="text" id="f-sqft" placeholder="1,400" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Your Rehab Estimate</label>
+            <input type="text" id="f-rehab" placeholder="$35,000" />
+          </div>
+        </div>
+
+        <div class="section-label">API Key</div>
+        <div class="field">
+          <label>Anthropic Key (if not in config.js)</label>
+          <input type="password" id="api-key-input" placeholder="sk-ant-..." />
+        </div>
+
+        <button class="run-btn tsunami" id="run-btn" onclick="runResearch()">
+          <div class="spinner"></div>
+          <span class="btn-label">Run Research</span>
+        </button>
+
+      </div>
+
+      <!-- Pipeline tab -->
+      <div id="view-pipeline" class="panel-body" style="display:none">
+        <div class="filter-bar" id="filter-bar">
+          <button class="filter-chip active" onclick="filterPipeline('all', this)">All</button>
+          <button class="filter-chip" onclick="filterPipeline('Researched', this)">Researched</button>
+          <button class="filter-chip" onclick="filterPipeline('Cold', this)">Cold</button>
+          <button class="filter-chip" onclick="filterPipeline('Tier 1', this)">Tier 1</button>
+          <button class="filter-chip" onclick="filterPipeline('Dead/Disqualified', this)">DQ</button>
+        </div>
+        <div class="company-list" id="company-list">
+          <div class="empty" style="padding:40px 0">
+            <div class="empty-label">Loading pipeline...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right panel -->
+    <div class="right-panel">
+      <div class="result-header">
+        <div>
+          <div class="result-company" id="result-company">—</div>
+          <div class="result-meta" id="result-meta"></div>
+        </div>
+        <div class="result-spacer"></div>
+        <button class="save-btn" id="save-btn" onclick="saveToSheet()">
+          ↑ Save to Sheet
+        </button>
+      </div>
+
+      <div class="result-scroll" id="result-scroll">
+        <div class="empty" id="empty-state">
+          <div class="empty-glyph">◈</div>
+          <div class="empty-label">Run research or select a company</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let state = {
+  mode: 'tsunami',
+  tab: 'research',
+  user: null,
+  accessToken: null,
+  lastResult: null,
+  lastRowNum: null,
+  lastAddress: null,
+  pipeline: [],
+  filterStatus: 'all',
+};
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+function handleGoogleLogin() {
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: window.APP_CONFIG.GOOGLE_CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/spreadsheets openid email profile',
+    callback: (resp) => {
+      if (resp.error) { alert('Login failed: ' + resp.error); return; }
+      state.accessToken = resp.access_token;
+      fetchUserInfo(resp.access_token);
+    },
+  });
+  client.requestAccessToken();
+}
+
+async function fetchUserInfo(token) {
+  const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: 'Bearer ' + token }
+  });
+  const info = await r.json();
+  state.user = info;
+
+  document.getElementById('user-name').textContent = info.given_name || info.email;
+  document.getElementById('user-initial').textContent = (info.given_name || info.email)[0].toUpperCase();
+
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+
+  loadDashboard();
+  loadPipeline();
+}
+
+function signOut() {
+  if (confirm('Sign out?')) {
+    state.user = null; state.accessToken = null;
+    document.getElementById('app').classList.remove('visible');
+    document.getElementById('auth-screen').style.display = 'flex';
+  }
+}
+
+// ── Mode / Tab ────────────────────────────────────────────────────────────────
+function setMode(mode) {
+  state.mode = mode;
+  document.getElementById('tsunami-fields').style.display = mode === 'tsunami' ? 'flex' : 'none';
+  document.getElementById('flip-fields').style.display    = mode === 'flip'    ? 'flex' : 'none';
+  document.querySelectorAll('.mode-btn').forEach(b => b.className = 'mode-btn');
+  document.getElementById('mode-' + mode).className = 'mode-btn active-' + mode;
+  const btn = document.getElementById('run-btn');
+  btn.className = 'run-btn ' + mode;
+  clearResult();
+}
+document.getElementById('tsunami-fields').style.display = 'flex';
+document.getElementById('flip-fields').style.display = 'none';
+
+function showTab(tab) {
+  state.tab = tab;
+  document.getElementById('view-research').style.display = tab === 'research' ? 'flex' : 'none';
+  document.getElementById('view-pipeline').style.display = tab === 'pipeline' ? 'flex' : 'none';
+  document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'pipeline') loadPipeline();
+}
+
+// ── API calls ─────────────────────────────────────────────────────────────────
+function apiUrl(action, params) {
+  const base = window.APP_CONFIG.APPS_SCRIPT_URL;
+  const qs = new URLSearchParams({ action, ...params }).toString();
+  return `${base}?${qs}`;
+}
+
+async function callScript(action, params = {}, body = null) {
+  const url = apiUrl(action, params);
+  const opts = {
+    method: body ? 'POST' : 'GET',
+    headers: { Authorization: 'Bearer ' + state.accessToken },
+  };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify({ action, ...body }); }
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const data = await callScript('getDashboard');
+    document.getElementById('dash-researched').textContent = data.total || '—';
+    document.getElementById('dash-tier1').textContent = data.tierCounts?.['Tier 1 — Immediate'] || 0;
+    document.getElementById('dash-contacted').textContent =
+      (data.counts?.['Cold'] || 0) + (data.counts?.['Connected'] || 0);
+  } catch(e) { console.warn('Dashboard load failed:', e.message); }
+}
+
+// ── Pipeline ──────────────────────────────────────────────────────────────────
+async function loadPipeline() {
+  const list = document.getElementById('company-list');
+  list.innerHTML = '<div class="empty" style="padding:40px 0"><div class="empty-label">Loading...</div></div>';
+  try {
+    const data = await callScript('getRows', { limit: 300 });
+    state.pipeline = data.rows || [];
+    renderPipeline();
+  } catch(e) {
+    list.innerHTML = '<div class="empty" style="padding:40px 0;color:var(--red)"><div class="empty-label">Failed to load</div></div>';
+  }
+}
+
+function filterPipeline(filter, btn) {
+  state.filterStatus = filter;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderPipeline();
+}
+
+function renderPipeline() {
+  const list = document.getElementById('company-list');
+  let rows = state.pipeline;
+  if (state.filterStatus !== 'all') {
+    if (state.filterStatus === 'Tier 1') {
+      rows = rows.filter(r => r.tier && r.tier.includes('Tier 1'));
+    } else {
+      rows = rows.filter(r => r.status === state.filterStatus);
+    }
+  }
+  if (!rows.length) {
+    list.innerHTML = '<div class="empty" style="padding:30px 0"><div class="empty-label">No results</div></div>';
+    return;
+  }
+  list.innerHTML = rows.map(r => {
+    const score = r.total || 0;
+    const sc = r.tier?.includes('Tier 1') ? 'score-t1' : r.tier?.includes('Tier 2') ? 'score-t2' : r.tier?.includes('Disq') || r.status === 'Dead/Disqualified' ? 'score-dq' : 'score-lo';
+    return `<div class="company-item" onclick="loadCompanyResult(${r.rowNum})">
+      <div class="company-name">
+        <span class="company-score ${sc}">${score}</span>
+        ${r.company}
+      </div>
+      <div class="company-meta">${r.city || ''}, ${r.state || ''} · ${r.status || ''}</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadCompanyResult(rowNum) {
+  const rec = state.pipeline.find(r => r.rowNum === rowNum);
+  if (!rec) return;
+  setResultHeader(rec.company, `${rec.city}, ${rec.state} · ${rec.status}`);
+  state.lastRowNum = rowNum;
+
+  // Show existing data from sheet as a card
+  const scroll = document.getElementById('result-scroll');
+  const emptyState = document.getElementById('empty-state');
+  if (emptyState) emptyState.remove();
+
+  const mockResult = {
+    owner_name: rec.owner, owner_age_est: rec.owner_age,
+    score_age: rec.score_age, score_founding: rec.score_found,
+    score_family: rec.score_fam, score_pe: rec.score_pe, score_mgmt: rec.score_mgmt,
+    total_score: rec.total, priority_tier: rec.tier,
+    certs_confirmed: rec.certs, revenue_est: rec.revenue,
+    research_notes: rec.notes, next_action: rec.next_action,
+    pipeline_status: rec.status,
+  };
+
+  scroll.innerHTML = renderTsunamiCard(mockResult);
+
+  // Show re-research button if not fully researched
+  if (!rec.owner || rec.status === 'Researched') {
+    const btn = document.getElementById('run-btn');
+    document.getElementById('t-company').value = rec.company;
+    document.getElementById('t-city').value = rec.city || '';
+    document.getElementById('t-state').value = rec.state || 'WI';
+    document.getElementById('t-founded').value = rec.founded || '';
+    document.getElementById('t-revenue').value = rec.revenue || '';
+    document.getElementById('t-certs').value = rec.certs || '';
+    showTab('research');
+  }
+}
+
+// ── Research ──────────────────────────────────────────────────────────────────
+async function runResearch() {
+  const apiKey = document.getElementById('api-key-input').value.trim() || window.APP_CONFIG.ANTHROPIC_API_KEY;
+  if (!apiKey) { alert('Enter your Anthropic API key.'); return; }
+
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true; btn.classList.add('loading');
+  clearResult();
+
+  const scroll = document.getElementById('result-scroll');
+  const emptyEl = document.getElementById('empty-state');
+  if (emptyEl) emptyEl.remove();
+  scroll.innerHTML = `<div class="empty"><div class="empty-glyph" style="animation:spin 2s linear infinite;font-size:24px">◈</div><div class="empty-label">Searching the web...</div></div>`;
+
+  try {
+    let name, prompt;
+    if (state.mode === 'tsunami') {
+      name = document.getElementById('t-company').value.trim();
+      if (!name) throw new Error('Enter a company name');
+      prompt = buildTsunamiPrompt(name,
+        document.getElementById('t-city').value.trim(),
+        document.getElementById('t-state').value.trim(),
+        document.getElementById('t-founded').value.trim(),
+        document.getElementById('t-revenue').value.trim(),
+        document.getElementById('t-certs').value.trim(),
+      );
+    } else {
+      name = document.getElementById('f-address').value.trim();
+      if (!name) throw new Error('Enter a property address');
+      prompt = buildFlipPrompt(name,
+        document.getElementById('f-price').value.trim(),
+        document.getElementById('f-type').value,
+        document.getElementById('f-beds').value.trim(),
+        document.getElementById('f-sqft').value.trim(),
+        document.getElementById('f-rehab').value.trim(),
+      );
+    }
+
+    setResultHeader(name, 'Researching...');
+
+    // Call Anthropic directly from browser
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error?.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    let text = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('No JSON in response');
+    const result = JSON.parse(match[0]);
+
+    state.lastResult = result;
+    state.lastAddress = state.mode === 'flip' ? name : null;
+
+    setResultHeader(name, result.priority_tier || result.deal_verdict || '');
+    scroll.innerHTML = state.mode === 'tsunami' ? renderTsunamiCard(result) : renderFlipCard(result);
+
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.className = 'save-btn visible';
+    saveBtn.textContent = '↑ Save to Sheet';
+
+  } catch(err) {
+    scroll.innerHTML = `<div class="card"><div class="card-body" style="color:var(--red);font-size:12px;line-height:1.7">
+      <strong>Research failed</strong><br><br>${err.message}<br><br>
+      If you see a CORS error, the app must be served from a web server.<br>
+      Run: <code style="background:var(--surface2);padding:2px 6px;border-radius:2px">python3 -m http.server 8080</code><br>
+      Then open <code style="background:var(--surface2);padding:2px 6px;border-radius:2px">localhost:8080</code>
+    </div></div>`;
+    setResultHeader('Error', '');
+  }
+
+  btn.disabled = false; btn.classList.remove('loading');
+}
+
+// ── Save to sheet ─────────────────────────────────────────────────────────────
+async function saveToSheet() {
+  if (!state.lastResult) return;
+  const btn = document.getElementById('save-btn');
+  btn.textContent = 'Saving...';
+  btn.style.opacity = '0.6';
+
+  try {
+    let result;
+    if (state.mode === 'tsunami') {
+      result = await callScript('saveCompany', {}, {
+        result: state.lastResult,
+        rowNum: state.lastRowNum,
+      });
+    } else {
+      result = await callScript('saveProperty', {}, {
+        result: state.lastResult,
+        address: state.lastAddress,
+      });
+    }
+
+    btn.textContent = '✓ Saved';
+    btn.className = 'save-btn visible saved';
+    loadDashboard();
+    if (state.tab === 'pipeline') loadPipeline();
+  } catch(err) {
+    btn.textContent = '✗ Save failed';
+    btn.style.color = 'var(--red)';
+    setTimeout(() => {
+      btn.textContent = '↑ Save to Sheet';
+      btn.style.opacity = '1'; btn.style.color = '';
+    }, 2000);
+  }
+}
+
+// ── Renderers ─────────────────────────────────────────────────────────────────
+function tierClass(tier) {
+  if (!tier) return 'tier-low';
+  if (tier.includes('Tier 1')) return 'tier-t1';
+  if (tier.includes('Tier 2')) return 'tier-t2';
+  if (tier.includes('Remove') || tier.includes('Disq')) return 'tier-dq';
+  return 'tier-low';
+}
+function scoreColor(v) {
+  if (v >= 4) return 'var(--green)';
+  if (v >= 3) return 'var(--amber)';
+  return 'var(--red)';
+}
+function fmt(v) { return (v !== null && v !== undefined && v !== '') ? v : '—'; }
+function fmtDollar(v) { return v ? '$' + Number(v).toLocaleString() : '—'; }
+
+function renderScoreBar(label, val) {
+  const pct = ((val || 0) / 5) * 100;
+  const color = scoreColor(val);
+  return `<div class="score-bar-item">
+    <div class="score-bar-label">${label}</div>
+    <div class="score-bar-track">
+      <div class="score-bar-fill" style="height:${pct}%;background:${color}20;border-top:2px solid ${color}"></div>
+    </div>
+    <div class="score-bar-val" style="color:${color}">${val || '?'}</div>
+  </div>`;
+}
+
+function renderTsunamiCard(r) {
+  const total = r.total_score || 0;
+  const tc = tierClass(r.priority_tier);
+  const scoreColor_ = total >= 20 ? 'var(--green)' : total >= 14 ? 'var(--amber)' : 'var(--muted)';
+  let html = '';
+
+  // Score card
+  html += `<div class="card">
+    <div class="card-header">
+      <div class="card-title">Succession Score</div>
+      <div class="tier-badge ${tc}">${r.priority_tier || '—'}</div>
+    </div>
+    <div class="card-body">
+      <div class="score-hero">
+        <div class="score-num" style="color:${scoreColor_}">${total}</div>
+        <div class="score-denom">/25</div>
+      </div>
+      <div class="score-bars">
+        ${renderScoreBar('Age', r.score_age)}
+        ${renderScoreBar('Founded', r.score_founding)}
+        ${renderScoreBar('Family', r.score_family)}
+        ${renderScoreBar('No PE', r.score_pe)}
+        ${renderScoreBar('Mgmt', r.score_mgmt)}
+      </div>
+    </div>
+  </div>`;
+
+  // Owner & ownership
+  html += `<div class="card">
+    <div class="card-header"><div class="card-title">Owner Research</div></div>
+    <div class="card-body">
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="info-label">Owner / Founder</div>
+          <div class="info-val ${r.owner_name && r.owner_name !== 'Unknown' ? 'positive' : ''}">${fmt(r.owner_name)}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Est. Age</div>
+          <div class="info-val">${fmt(r.owner_age_est)}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Ownership</div>
+          <div class="info-val ${r.pe_flag ? 'negative' : 'positive'}">${r.pe_flag ? '⚠ PE / Institutional' : '✓ Clean'}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Family in Mgmt</div>
+          <div class="info-val">${fmt(r.family_in_leadership)}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Est. Revenue</div>
+          <div class="info-val">${fmtDollar(r.revenue_est)}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Employees</div>
+          <div class="info-val">${fmt(r.employee_count)}</div>
+        </div>
+        <div class="info-item" style="grid-column:1/-1">
+          <div class="info-label">Certifications</div>
+          <div class="info-val positive">${fmt(r.certs_confirmed)}</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // Signals
+  const signals = r.succession_signals || [];
+  const flags   = r.red_flags || [];
+  if (signals.length || flags.length) {
+    html += `<div class="card">
+      <div class="card-header"><div class="card-title">Signals</div></div>
+      <div class="card-body">
+        <div class="signal-list">
+          ${signals.map(s => `<div class="signal-item"><div class="signal-dot green"></div>${s}</div>`).join('')}
+          ${flags.map(f => `<div class="signal-item"><div class="signal-dot red"></div>${f}</div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Notes
+  if (r.research_notes) {
+    html += `<div class="card">
+      <div class="card-header"><div class="card-title">Research Notes</div></div>
+      <div class="card-body"><div class="notes-text">${r.research_notes}</div></div>
+    </div>`;
+  }
+
+  // Links
+  if (r.wis_sos_url || r.linkedin_url) {
+    html += `<div class="card">
+      <div class="card-header"><div class="card-title">Sources</div></div>
+      <div class="card-body"><div class="info-grid">
+        ${r.wis_sos_url ? `<div class="info-item"><div class="info-label">WI SOS</div><div class="info-val"><a href="${r.wis_sos_url}" target="_blank" style="color:var(--blue)">${r.wis_sos_url.slice(0,50)}...</a></div></div>` : ''}
+        ${r.linkedin_url ? `<div class="info-item"><div class="info-label">LinkedIn</div><div class="info-val"><a href="${r.linkedin_url}" target="_blank" style="color:var(--blue)">Open profile ↗</a></div></div>` : ''}
+      </div></div>
+    </div>`;
+  }
+
+  // Next action
+  html += `<div class="next-action-block ${r.disqualified ? 'red' : ''}">
+    <div>
+      <div class="next-action-label">Next Action</div>
+      <div class="next-action-text">${fmt(r.next_action)}</div>
+    </div>
+  </div>`;
+
+  return html;
+}
+
+function renderFlipCard(r) {
+  const verdictColor = r.deal_verdict === 'Strong Deal' ? 'var(--green)' : r.deal_verdict === 'Marginal' ? 'var(--amber)' : 'var(--red)';
+  const vc = r.deal_verdict === 'Strong Deal' ? 'tier-t1' : r.deal_verdict === 'Marginal' ? 'tier-t2' : 'tier-dq';
+  let html = '';
+
+  // Deal verdict
+  html += `<div class="card">
+    <div class="card-header">
+      <div class="card-title">Deal Analysis</div>
+      <div class="tier-badge ${vc}">${r.deal_verdict || '—'}</div>
+    </div>
+    <div class="card-body">
+      <div class="score-hero">
+        <div class="score-num" style="color:${verdictColor}">${fmtDollar(r.estimated_profit)}</div>
+      </div>
+      <div style="margin-top:4px;font-size:11px;color:var(--muted)">Estimated profit · ARV confidence: ${r.arv_confidence || '—'}</div>
+      <div class="info-grid" style="margin-top:14px">
+        <div class="info-item"><div class="info-label">ARV Estimate</div><div class="info-val positive">${fmtDollar(r.arv_estimate)}</div></div>
+        <div class="info-item"><div class="info-label">All-In Cost</div><div class="info-val">${fmtDollar(r.all_in_cost)}</div></div>
+        <div class="info-item"><div class="info-label">Max Offer (70%)</div><div class="info-val warning">${fmtDollar(r.max_offer_70pct)}</div></div>
+        <div class="info-item"><div class="info-label">Profit Margin</div><div class="info-val ${(r.profit_margin_pct||0)>=15?'positive':'warning'}">${r.profit_margin_pct ? r.profit_margin_pct.toFixed(1)+'%' : '—'}</div></div>
+      </div>
+    </div>
+  </div>`;
+
+  // Property details
+  html += `<div class="card">
+    <div class="card-header"><div class="card-title">Property Details</div></div>
+    <div class="card-body"><div class="info-grid">
+      <div class="info-item"><div class="info-label">Beds / Baths</div><div class="info-val">${fmt(r.beds)}bd / ${fmt(r.baths)}ba</div></div>
+      <div class="info-item"><div class="info-label">Sq Ft / Built</div><div class="info-val">${fmt(r.sqft)} / ${fmt(r.year_built)}</div></div>
+      <div class="info-item"><div class="info-label">List Price</div><div class="info-val">${fmtDollar(r.list_price)}</div></div>
+      <div class="info-item"><div class="info-label">Days on Market</div><div class="info-val ${(r.days_on_market||0)>60?'positive':''}"> ${fmt(r.days_on_market)} days · ${fmt(r.price_reductions)} cuts</div></div>
+      <div class="info-item"><div class="info-label">Owner / Yrs Held</div><div class="info-val">${fmt(r.current_owner)} · ${fmt(r.years_owned)}yr</div></div>
+      <div class="info-item"><div class="info-label">Tax Delinquent</div><div class="info-val ${r.tax_delinquent?'positive':''}"> ${r.tax_delinquent ? '⚠ YES — distress signal' : 'No'}</div></div>
+      <div class="info-item"><div class="info-label">Neighborhood</div><div class="info-val">${fmt(r.neighborhood_score)} — ${fmt(r.neighborhood_notes)}</div></div>
+      <div class="info-item"><div class="info-label">Rehab Est.</div><div class="info-val">${fmtDollar(r.rehab_estimate_ian)}</div></div>
+    </div></div>
+  </div>`;
+
+  // Comps
+  if (r.comps && r.comps.length) {
+    html += `<div class="card">
+      <div class="card-header"><div class="card-title">Recent Comps</div></div>
+      <div class="card-body">
+        <table class="comps-table">
+          <tr><th>Address</th><th>Price</th><th>Beds</th><th>Sqft</th><th>Date</th></tr>
+          ${r.comps.map(c => `<tr>
+            <td>${c.address}</td>
+            <td style="color:var(--green)">${fmtDollar(c.sold_price)}</td>
+            <td>${c.beds||'?'}bd</td>
+            <td>${c.sqft ? c.sqft.toLocaleString() : '?'}</td>
+            <td style="color:var(--muted)">${c.sold_date}</td>
+          </tr>`).join('')}
+        </table>
+      </div>
+    </div>`;
+  }
+
+  // Signals
+  const dist = r.distress_signals || [];
+  const flags = r.red_flags || [];
+  if (dist.length || flags.length) {
+    html += `<div class="card">
+      <div class="card-header"><div class="card-title">Signals</div></div>
+      <div class="card-body"><div class="signal-list">
+        ${dist.map(s => `<div class="signal-item"><div class="signal-dot green"></div>${s}</div>`).join('')}
+        ${flags.map(f => `<div class="signal-item"><div class="signal-dot red"></div>${f}</div>`).join('')}
+      </div></div>
+    </div>`;
+  }
+
+  // Notes + verdict reason
+  if (r.deal_verdict_reason || r.research_notes) {
+    html += `<div class="card">
+      <div class="card-header"><div class="card-title">Analysis</div></div>
+      <div class="card-body"><div class="notes-text">${r.deal_verdict_reason || ''} ${r.research_notes || ''}</div></div>
+    </div>`;
+  }
+
+  html += `<div class="next-action-block ${r.deal_verdict==='Pass'?'red':r.deal_verdict==='Strong Deal'?'green':''}">
+    <div><div class="next-action-label">Next Action</div><div class="next-action-text">${fmt(r.next_action)}</div></div>
+  </div>`;
+
+  return html;
+}
+
+// ── Prompt builders ───────────────────────────────────────────────────────────
+function buildTsunamiPrompt(company, city, state_, founded, revenue, certs) {
+  return `You are a lower-middle-market business acquisition researcher for Ian Markolf, Milwaukee-based investor targeting founder-owned industrial businesses in SE Wisconsin ($2.5M–$6M purchase, SBA 7(a)).
+
+TARGET: Revenue $1M–$25M, founded pre-2000, no PE, owner 58–72, cert moat (AS9100/ISO 9001/ITAR/NADCAP/ISO 13485/Mil-Spec).
+
+COMPANY: ${company} | ${city||'Unknown'}, ${state_||'WI'} | Founded: ${founded||'Unknown'} | Revenue: ${revenue||'Unknown'} | Certs: ${certs||'Unknown'}
+
+Search web and return ONLY valid JSON (no markdown):
+{"owner_name":"string or Unknown","owner_age_est":"range or Unknown","score_age":3,"pe_flag":false,"pe_detail":null,"score_pe":4,"family_in_leadership":"string or Unknown","score_family":2,"certs_confirmed":"string","revenue_est":null,"employee_count":null,"score_founding":3,"score_mgmt":3,"total_score":15,"priority_tier":"Tier 2 — Active Watch","disqualified":false,"disqualify_reason":null,"pipeline_status":"Cold","next_action":"string","succession_signals":[],"red_flags":[],"research_notes":"string","wis_sos_url":null,"linkedin_url":null}
+
+Scoring: Age 68+=5,63-67=4,55-62=3,50-54=2,<50=1,unk=3 | PE clean=5,unk=4,partial=3,majority=2,confirmed=1 | Family none=5,non-op=4,1-op=3,2=2,full=1 | Mgmt full=5,GM=4,ops=3,+1=2,alone=1 | Founding pre1990=5,90-95=4,95-2000=3,2000-05=2,post05=1`;
+}
+
+function buildFlipPrompt(address, price, type_, beds, sqft, rehab) {
+  return `Fix & flip analyst for Ian Markolf, Milwaukee RE investor. Target: all-in <$250K, ARV $275K-$400K, profit >$40K. SE Wisconsin.
+
+PROPERTY: ${address} | List: ${price||'Unknown'} | ${type_||'SFR'} | Beds: ${beds||'?'} | Sqft: ${sqft||'?'} | Rehab est: ${rehab||'Unknown'}
+
+Search Zillow/Redfin/county and return ONLY valid JSON (no markdown):
+{"address_confirmed":"string","list_price":null,"beds":null,"baths":null,"sqft":null,"year_built":null,"days_on_market":null,"price_reductions":0,"current_owner":"Unknown","years_owned":null,"tax_delinquent":false,"lien_signals":"None found","arv_estimate":0,"arv_confidence":"Medium","comps":[],"rehab_estimate_ian":0,"rehab_notes":"string","max_offer_70pct":0,"all_in_cost":0,"estimated_profit":0,"profit_margin_pct":0,"deal_verdict":"Marginal","deal_verdict_reason":"string","distress_signals":[],"red_flags":[],"neighborhood_score":"B","neighborhood_notes":"string","next_action":"string","research_notes":"string"}`;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setResultHeader(company, meta) {
+  document.getElementById('result-company').textContent = company;
+  document.getElementById('result-meta').textContent = meta;
+}
+function clearResult() {
+  const scroll = document.getElementById('result-scroll');
+  scroll.innerHTML = '<div class="empty" id="empty-state"><div class="empty-glyph">◈</div><div class="empty-label">Run research or select a company</div></div>';
+  document.getElementById('save-btn').className = 'save-btn';
+  setResultHeader('—', '');
+  state.lastResult = null; state.lastRowNum = null;
+}
+
+// Cmd+Enter shortcut
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') runResearch();
+});
+</script>
+</body>
+</html>
