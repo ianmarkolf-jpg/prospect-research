@@ -798,7 +798,7 @@ let state = {
 function handleGoogleLogin() {
   const client = google.accounts.oauth2.initTokenClient({
     client_id: window.APP_CONFIG.GOOGLE_CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/spreadsheets openid email profile',
+    scope: 'openid email profile',
     callback: (resp) => {
       if (resp.error) { alert('Login failed: ' + resp.error); return; }
       state.accessToken = resp.access_token;
