@@ -4,4 +4,3 @@ window.APP_CONFIG = {
   SHEET_ID: '10betkhjKVEBoN_Mfk7BfivQGvpGthklcYmK1cfwEpug',
   ANTHROPIC_API_KEY: '',
 };
-```
