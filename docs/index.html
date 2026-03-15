@@ -17,8 +17,8 @@
   --surface2: #161922;
   --border:   #1c2030;
   --border2:  #242840;
-  --text:     #d4daf0;
-  --muted:    #4a5275;
+  --text:     #eef1fa;
+  --muted:    #8892b0;
   --dim:      #2a304d;
   --blue:     #4169ff;
   --blue-dim: #1a2560;
@@ -210,7 +210,7 @@ body {
 .body-layout {
   flex: 1;
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 460px 1fr;
   overflow: hidden;
 }
 
@@ -221,6 +221,9 @@ body {
   flex-direction: column;
   overflow: hidden;
   background: var(--surface);
+  width: 460px;
+  min-width: 460px;
+  flex-shrink: 0;
 }
 
 .panel-tabs {
@@ -230,9 +233,9 @@ body {
 }
 .panel-tab {
   flex: 1;
-  padding: 10px 0;
-  font-size: 10px;
-  font-weight: 600;
+  padding: 12px 0;
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-align: center;
@@ -245,42 +248,42 @@ body {
 }
 .panel-tab.active { color: var(--text); border-bottom-color: var(--blue); }
 
-.panel-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.panel-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
 
 /* Form fields */
-.field { display: flex; flex-direction: column; gap: 5px; }
+.field { display: flex; flex-direction: column; gap: 6px; width: 100%; }
 .field label {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--text);
 }
 .field input, .field select {
   background: var(--bg);
   border: 1px solid var(--border2);
   color: var(--text);
   font-family: var(--mono);
-  font-size: 12px;
-  padding: 7px 10px;
+  font-size: 13px;
+  padding: 9px 12px;
   border-radius: 3px;
   width: 100%;
   outline: none;
   transition: border-color 0.15s;
 }
 .field input:focus, .field select:focus { border-color: var(--blue); }
-.field input::placeholder { color: var(--dim); }
+.field input::placeholder { color: var(--muted); }
 .field select option { background: var(--surface2); }
 
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
 
 .section-label {
-  font-size: 9px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--dim);
-  padding-bottom: 6px;
+  color: var(--muted);
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
   margin-top: 4px;
 }
@@ -288,10 +291,10 @@ body {
 /* Run button */
 .run-btn {
   width: 100%;
-  padding: 11px 16px;
+  padding: 13px 16px;
   font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   border: none;
@@ -654,7 +657,7 @@ body {
       <div id="view-research" class="panel-body">
 
         <!-- Tsunami fields -->
-        <div id="tsunami-fields">
+        <div id="tsunami-fields" style="display:flex;flex-direction:column;gap:14px;width:100%">
           <div class="section-label">Company Details</div>
           <div class="field">
             <label>Company Name *</label>
@@ -687,7 +690,7 @@ body {
         </div>
 
         <!-- Flip fields -->
-        <div id="flip-fields" style="display:none">
+        <div id="flip-fields" style="display:none;flex-direction:column;gap:14px;width:100%">
           <div class="section-label">Property Details</div>
           <div class="field">
             <label>Property Address *</label>
@@ -727,7 +730,7 @@ body {
         <div class="section-label">API Key</div>
         <div class="field">
           <label>Anthropic Key (if not in config.js)</label>
-          <input type="password" id="api-key-input" placeholder="sk-ant-..." />
+          <input type="password" id="api-key-input" placeholder="sk-ant-... (saved locally after first use)" />
         </div>
 
         <button class="run-btn tsunami" id="run-btn" onclick="runResearch()">
@@ -837,7 +840,9 @@ function signOut() {
 function setMode(mode) {
   state.mode = mode;
   document.getElementById('tsunami-fields').style.display = mode === 'tsunami' ? 'flex' : 'none';
+  document.getElementById('tsunami-fields').style.flexDirection = 'column';
   document.getElementById('flip-fields').style.display    = mode === 'flip'    ? 'flex' : 'none';
+  document.getElementById('flip-fields').style.flexDirection = 'column';
   document.querySelectorAll('.mode-btn').forEach(b => b.className = 'mode-btn');
   document.getElementById('mode-' + mode).className = 'mode-btn active-' + mode;
   const btn = document.getElementById('run-btn');
@@ -973,6 +978,8 @@ async function loadCompanyResult(rowNum) {
 async function runResearch() {
   const apiKey = document.getElementById('api-key-input').value.trim() || window.APP_CONFIG.ANTHROPIC_API_KEY;
   if (!apiKey) { alert('Enter your Anthropic API key.'); return; }
+  // Save key locally so user never has to type it again
+  localStorage.setItem('anthropic_key', apiKey);
 
   const btn = document.getElementById('run-btn');
   btn.disabled = true; btn.classList.add('loading');
@@ -1354,6 +1361,10 @@ function clearResult() {
   setResultHeader('—', '');
   state.lastResult = null; state.lastRowNum = null;
 }
+
+// Load saved API key from localStorage
+const savedKey = localStorage.getItem('anthropic_key');
+if (savedKey) document.getElementById('api-key-input').value = savedKey;
 
 // Cmd+Enter shortcut
 document.addEventListener('keydown', e => {
