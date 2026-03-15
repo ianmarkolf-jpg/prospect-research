@@ -35,9 +35,8 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
-  height: 100%;
   margin: 0;
-  overflow: hidden;
+  min-height: 100vh;
 }
 body {
   background: var(--bg);
@@ -118,7 +117,7 @@ body {
 }
 
 /* ── App layout ── */
-#app { display: none; height: 100%; flex-direction: column; }
+#app { display: none; min-height: 100vh; flex-direction: column; }
 #app.visible { display: flex; }
 
 /* Topbar */
@@ -131,8 +130,9 @@ body {
   background: var(--surface);
   gap: 16px;
   flex-shrink: 0;
-  position: relative;
-  z-index: 10;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .topbar-mark {
@@ -211,12 +211,9 @@ body {
 
 /* ── Body layout ── */
 .body-layout {
-  flex: 1;
   display: grid;
   grid-template-columns: 460px 1fr;
-  overflow: hidden;
-  min-height: 0;
-  height: calc(100% - 52px);
+  align-items: start;
 }
 
 /* ── Left panel ── */
@@ -224,11 +221,14 @@ body {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   background: var(--surface);
   width: 460px;
   min-width: 460px;
   flex-shrink: 0;
+  position: sticky;
+  top: 52px;
+  height: calc(100vh - 52px);
+  overflow-y: auto;
 }
 
 .panel-tabs {
@@ -372,19 +372,19 @@ body {
 
 /* ── Right panel ── */
 .right-panel {
-  position: relative;
-  overflow: hidden;
+  overflow-y: auto;
   background: var(--bg);
   min-width: 0;
+  height: calc(100vh - 52px);
+  position: sticky;
+  top: 52px;
+  align-self: start;
 }
 
 .result-header {
-  position: absolute;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-  height: 64px;
-  padding: 0 24px;
+  padding: 14px 24px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -423,12 +423,6 @@ body {
 .save-btn.saved { border-color: var(--muted); background: transparent; color: var(--muted); cursor: default; }
 
 .result-scroll {
-  position: absolute;
-  top: 64px;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow-y: auto;
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
