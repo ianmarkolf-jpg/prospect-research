@@ -1169,7 +1169,12 @@ function scoreColor(v) {
   return 'var(--red)';
 }
 function fmt(v) { return (v !== null && v !== undefined && v !== '') ? v : '—'; }
-function fmtDollar(v) { return v ? '$' + Number(v).toLocaleString() : '—'; }
+function fmtDollar(v) {
+  if (!v || isNaN(v) || v === 'NaN') return '—';
+  const n = Number(v);
+  if (!isFinite(n) || n <= 0) return '—';
+  return '$' + n.toLocaleString();
+}
 
 function renderScoreBar(label, val) {
   const pct = ((val || 0) / 5) * 100;
