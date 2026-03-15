@@ -34,13 +34,15 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
 body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--mono);
   font-size: 13px;
-  min-height: 100vh;
-  overflow-x: hidden;
 }
 
 /* ── Auth screen ── */
@@ -115,7 +117,7 @@ body {
 }
 
 /* ── App layout ── */
-#app { display: none; height: 100vh; flex-direction: column; }
+#app { display: none; height: 100%; flex-direction: column; }
 #app.visible { display: flex; }
 
 /* Topbar */
@@ -211,7 +213,7 @@ body {
   flex: 1;
   display: grid;
   grid-template-columns: 460px 1fr;
-  overflow: auto;
+  overflow: hidden;
   min-height: 0;
 }
 
@@ -370,9 +372,10 @@ body {
 .right-panel {
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  overflow: hidden;
   background: var(--bg);
   min-width: 0;
+  min-height: 0;
 }
 
 .result-header {
@@ -1091,14 +1094,44 @@ async function saveToSheet() {
   try {
     let result;
     if (state.mode === 'tsunami') {
+      // Only send fields we actually write — avoids URL length limit
+      const r = state.lastResult;
+      const slim = {
+        owner_name:      r.owner_name,
+        owner_age_est:   r.owner_age_est,
+        score_age:       r.score_age,
+        score_family:    r.score_family,
+        score_pe:        r.score_pe,
+        score_mgmt:      r.score_mgmt,
+        certs_confirmed: r.certs_confirmed,
+        revenue_est:     r.revenue_est,
+        pipeline_status: r.pipeline_status,
+        next_action:     r.next_action,
+        research_notes:  r.research_notes ? r.research_notes.slice(0, 300) : '',
+        disqualified:    r.disqualified,
+      };
       result = await callScriptJsonp('saveCompany', {
-        resultJson: JSON.stringify(state.lastResult),
-        rowNum: state.lastRowNum || '',
+        resultJson:  JSON.stringify(slim),
+        rowNum:      state.lastRowNum || '',
+        companyName: document.getElementById('t-company').value.trim(),
       });
     } else {
+      const r = state.lastResult;
+      const slim = {
+        list_price: r.list_price, beds: r.beds, baths: r.baths,
+        sqft: r.sqft, year_built: r.year_built, days_on_market: r.days_on_market,
+        price_reductions: r.price_reductions, current_owner: r.current_owner,
+        years_owned: r.years_owned, tax_delinquent: r.tax_delinquent,
+        arv_estimate: r.arv_estimate, rehab_estimate_ian: r.rehab_estimate_ian,
+        all_in_cost: r.all_in_cost, estimated_profit: r.estimated_profit,
+        profit_margin_pct: r.profit_margin_pct, deal_verdict: r.deal_verdict,
+        neighborhood_score: r.neighborhood_score,
+        next_action: r.next_action,
+        research_notes: r.research_notes ? r.research_notes.slice(0, 300) : '',
+      };
       result = await callScriptJsonp('saveProperty', {
-        resultJson: JSON.stringify(state.lastResult),
-        address: state.lastAddress || '',
+        resultJson: JSON.stringify(slim),
+        address:    state.lastAddress || '',
       });
     }
 
