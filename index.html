@@ -36,6 +36,7 @@
 
 html, body {
   height: 100%;
+  margin: 0;
   overflow: hidden;
 }
 body {
@@ -47,7 +48,7 @@ body {
 
 /* ── Auth screen ── */
 #auth-screen {
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -418,11 +419,13 @@ body {
 
 .result-scroll {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll;
+  overflow-x: hidden;
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  height: 0;
 }
 
 /* Empty / loading state */
@@ -1100,11 +1103,12 @@ async function saveToSheet() {
         owner_name:      r.owner_name,
         owner_age_est:   r.owner_age_est,
         score_age:       r.score_age,
+        score_founding:  r.score_founding,
         score_family:    r.score_family,
         score_pe:        r.score_pe,
         score_mgmt:      r.score_mgmt,
         certs_confirmed: r.certs_confirmed,
-        revenue_est:     r.revenue_est,
+        revenue_est:     (r.revenue_est && !isNaN(r.revenue_est)) ? r.revenue_est : null,
         pipeline_status: r.pipeline_status,
         next_action:     r.next_action,
         research_notes:  r.research_notes ? r.research_notes.slice(0, 300) : '',
