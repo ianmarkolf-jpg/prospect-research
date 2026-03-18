@@ -352,6 +352,18 @@ body {
 .score-t2 { background: var(--amber-dim); color: var(--amber); }
 .score-lo { background: var(--surface2); color: var(--muted); }
 .score-dq { background: var(--red-dim); color: var(--red); }
+.acq-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 2px;
+  letter-spacing: 0.05em;
+  margin-right: 5px;
+}
+.acq-a { background: var(--green-dim); color: var(--green); }
+.acq-b { background: var(--amber-dim); color: var(--amber); }
+.acq-c { background: var(--surface2); color: var(--muted); }
+.acq-d { background: var(--red-dim); color: var(--red); }
 
 /* Filter bar */
 .filter-bar { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -753,6 +765,7 @@ body {
       <div id="view-pipeline" class="panel-body" style="display:none">
         <div class="filter-bar" id="filter-bar">
           <button class="filter-chip active" onclick="filterPipeline('all', this)">All</button>
+          <button class="filter-chip" onclick="filterPipeline('priority-a', this)">⚡ Priority A</button>
           <button class="filter-chip" onclick="filterPipeline('Researched', this)">Researched</button>
           <button class="filter-chip" onclick="filterPipeline('Cold', this)">Cold</button>
           <button class="filter-chip" onclick="filterPipeline('Tier 1', this)">Tier 1</button>
@@ -954,26 +967,46 @@ function filterPipeline(filter, btn) {
 function renderPipeline() {
   const list = document.getElementById('company-list');
   let rows = state.pipeline;
+
+  // Filter
   if (state.filterStatus !== 'all') {
     if (state.filterStatus === 'Tier 1') {
       rows = rows.filter(r => r.tier && r.tier.includes('Tier 1'));
+    } else if (state.filterStatus === 'priority-a') {
+      rows = rows.filter(r => r.acq_priority && r.acq_priority.startsWith('A'));
     } else {
       rows = rows.filter(r => r.status === state.filterStatus);
     }
   }
+
+  // Sort: Priority A first, then B, then C/blank, then D — within each group by total score desc
+  const priorityOrder = p => p && p.startsWith('A') ? 0 : p && p.startsWith('B') ? 1 : p && p.startsWith('D') ? 3 : 2;
+  rows = [...rows].sort((a, b) => {
+    const pd = priorityOrder(a.acq_priority) - priorityOrder(b.acq_priority);
+    if (pd !== 0) return pd;
+    return (b.total || 0) - (a.total || 0);
+  });
+
   if (!rows.length) {
     list.innerHTML = '<div class="empty" style="padding:30px 0"><div class="empty-label">No results</div></div>';
     return;
   }
+
   list.innerHTML = rows.map(r => {
     const score = r.total || 0;
-    const sc = r.tier?.includes('Tier 1') ? 'score-t1' : r.tier?.includes('Tier 2') ? 'score-t2' : r.tier?.includes('Disq') || r.status === 'Dead/Disqualified' ? 'score-dq' : 'score-lo';
+    const sc = r.tier?.includes('Tier 1') ? 'score-t1' : r.tier?.includes('Tier 2') ? 'score-t2' : r.status === 'Dead/Disqualified' ? 'score-dq' : 'score-lo';
+    const ap = r.acq_priority || '';
+    const apLetter = ap.charAt(0);
+    const apClass = apLetter === 'A' ? 'acq-a' : apLetter === 'B' ? 'acq-b' : apLetter === 'D' ? 'acq-d' : 'acq-c';
+    const apBadge = ap ? `<span class="acq-badge ${apClass}">${apLetter}</span>` : '';
+    const moat = r.moat_score ? `· Moat ${r.moat_score}/10` : '';
+    const src = r.source_list ? `<span style="font-size:9px;padding:1px 4px;background:var(--surface2);border-radius:2px;color:var(--muted);margin-left:4px">${r.source_list}</span>` : '';
     return `<div class="company-item" onclick="loadCompanyResult(${r.rowNum})">
       <div class="company-name">
-        <span class="company-score ${sc}">${score}</span>
-        ${r.company}
+        <span class="company-score ${sc}">${score}/25</span>
+        ${apBadge}${r.company}${src}
       </div>
-      <div class="company-meta">${r.city || ''}, ${r.state || ''} · ${r.status || ''}</div>
+      <div class="company-meta">${r.city || ''}, ${r.state || ''} · ${r.status || ''} ${moat}</div>
     </div>`;
   }).join('');
 }
@@ -997,6 +1030,8 @@ async function loadCompanyResult(rowNum) {
     certs_confirmed: rec.certs, revenue_est: rec.revenue,
     research_notes: rec.notes, next_action: rec.next_action,
     pipeline_status: rec.status,
+    cert_moat_score: rec.moat_score, moat_tier: rec.moat_tier,
+    acquisition_priority: rec.acq_priority,
   };
 
   scroll.innerHTML = renderTsunamiCard(mockResult);
@@ -1089,6 +1124,16 @@ async function runResearch() {
 }
 
 // ── Save to sheet ─────────────────────────────────────────────────────────────
+// Strip citation markup that leaks from Claude web search responses
+function stripCitations(text) {
+  if (!text) return '';
+  return text
+    .replace(/]*>([\s\S]*?)<\/antml:cite>/gi, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function saveToSheet() {
   if (!state.lastResult) return;
   const btn = document.getElementById('save-btn');
@@ -1101,25 +1146,30 @@ async function saveToSheet() {
       // Only send fields we actually write — avoids URL length limit
       const r = state.lastResult;
       const slim = {
-        owner_name:       r.owner_name,
-        owner_age_est:    r.owner_age_est,
-        score_age:        r.score_age,
-        score_founding:   r.score_founding,
-        score_family:     r.score_family,
-        score_pe:         r.score_pe,
-        score_mgmt:       r.score_mgmt,
-        certs_confirmed:  r.certs_confirmed,
-        revenue_est:      (r.revenue_est && !isNaN(r.revenue_est)) ? r.revenue_est : null,
-        pipeline_status:  r.pipeline_status,
-        next_action:      r.next_action,
-        research_notes:   r.research_notes ? r.research_notes.slice(0, 300) : '',
-        disqualified:     r.disqualified,
-        pe_detail:        r.pe_detail,
-        family_detail:    r.family_in_leadership,
-        linkedin_url:     r.linkedin_url,
-        wis_sos_url:      r.wis_sos_url,
-        employee_count:   r.employee_count,
-        disq_reason:      r.disqualify_reason,
+        owner_name:              r.owner_name,
+        owner_age_est:           r.owner_age_est,
+        score_age:               r.score_age,
+        score_founding:          r.score_founding,
+        score_family:            r.score_family,
+        score_pe:                r.score_pe,
+        score_mgmt:              r.score_mgmt,
+        certs_confirmed:         r.certs_confirmed,
+        cert_moat_score:         r.cert_moat_score,
+        cert_moat_tier:          r.cert_moat_tier,
+        cert_moat_reason:        r.cert_moat_reason,
+        active_customer_signals: r.active_customer_signals,
+        acquisition_priority:    r.acquisition_priority,
+        revenue_est:             (r.revenue_est && !isNaN(r.revenue_est)) ? r.revenue_est : null,
+        pipeline_status:         r.pipeline_status,
+        next_action:             r.next_action,
+        research_notes:          r.research_notes ? r.research_notes.slice(0, 400) : '',
+        disqualified:            r.disqualified,
+        pe_detail:               r.pe_detail,
+        family_detail:           r.family_in_leadership,
+        linkedin_url:            r.linkedin_url,
+        wis_sos_url:             r.wis_sos_url,
+        employee_count:          r.employee_count,
+        disq_reason:             r.disqualify_reason,
       };
       result = await callScriptJsonp('saveCompany', {
         resultJson:  JSON.stringify(slim),
@@ -1138,7 +1188,7 @@ async function saveToSheet() {
         profit_margin_pct: r.profit_margin_pct, deal_verdict: r.deal_verdict,
         neighborhood_score: r.neighborhood_score,
         next_action: r.next_action,
-        research_notes: r.research_notes ? r.research_notes.slice(0, 300) : '',
+        research_notes: r.research_notes ? stripCitations(r.research_notes).slice(0, 400) : '',
       };
       result = await callScriptJsonp('saveProperty', {
         resultJson: JSON.stringify(slim),
@@ -1198,18 +1248,44 @@ function renderTsunamiCard(r) {
   const total = r.total_score || 0;
   const tc = tierClass(r.priority_tier);
   const scoreColor_ = total >= 20 ? 'var(--green)' : total >= 14 ? 'var(--amber)' : 'var(--muted)';
+  const moat = r.cert_moat_score || 0;
+  const moatColor = moat >= 7 ? 'var(--green)' : moat >= 5 ? 'var(--amber)' : 'var(--muted)';
+  const priority = r.acquisition_priority || '';
+  const priorityColor = priority.startsWith('A') ? 'var(--green)' : priority.startsWith('B') ? 'var(--amber)' : priority.startsWith('D') ? 'var(--red)' : 'var(--muted)';
+  const priorityBg = priority.startsWith('A') ? 'var(--green-dim)' : priority.startsWith('B') ? 'var(--amber-dim)' : priority.startsWith('D') ? 'var(--red-dim)' : 'var(--surface2)';
   let html = '';
 
-  // Score card
+  // Acquisition Priority banner — most prominent element
+  if (priority) {
+    html += `<div style="padding:14px 18px;background:${priorityBg};border:2px solid ${priorityColor};border-radius:4px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${priorityColor};margin-bottom:4px">Acquisition Priority</div>
+        <div style="font-size:17px;font-weight:700;color:${priorityColor}">${priority}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Combined Score</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">Succession <span style="color:${scoreColor_}">${total}</span>/25 · Moat <span style="color:${moatColor}">${moat || '?'}</span>/10</div>
+      </div>
+    </div>`;
+  }
+
+  // Score card — succession + moat side by side
   html += `<div class="card">
     <div class="card-header">
       <div class="card-title">Succession Score</div>
       <div class="tier-badge ${tc}">${r.priority_tier || '—'}</div>
     </div>
     <div class="card-body">
-      <div class="score-hero">
-        <div class="score-num" style="color:${scoreColor_}">${total}</div>
-        <div class="score-denom">/25</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px">
+        <div>
+          <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Succession /25</div>
+          <div style="font-family:var(--display);font-size:40px;font-weight:800;line-height:1;color:${scoreColor_}">${total}<span style="font-size:16px;color:var(--muted)">/25</span></div>
+        </div>
+        <div>
+          <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Cert Moat /10</div>
+          <div style="font-family:var(--display);font-size:40px;font-weight:800;line-height:1;color:${moatColor}">${moat || '?'}<span style="font-size:16px;color:var(--muted)">/10</span></div>
+          ${r.cert_moat_reason ? `<div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4">${r.cert_moat_reason}</div>` : ''}
+        </div>
       </div>
       <div class="score-bars">
         ${renderScoreBar('Age', r.score_age)}
@@ -1218,6 +1294,7 @@ function renderTsunamiCard(r) {
         ${renderScoreBar('No PE', r.score_pe)}
         ${renderScoreBar('Mgmt', r.score_mgmt)}
       </div>
+      ${r.active_customer_signals ? `<div style="margin-top:12px;padding:10px;background:var(--bg);border-radius:3px;border-left:3px solid var(--green)"><div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Active Customer Signals</div><div style="font-size:12px;color:var(--text)">${r.active_customer_signals}</div></div>` : ''}
     </div>
   </div>`;
 
@@ -1394,14 +1471,41 @@ function renderFlipCard(r) {
 function buildTsunamiPrompt(company, city, state_, founded, revenue, certs) {
   return `You are a lower-middle-market business acquisition researcher for Ian Markolf, Milwaukee-based investor targeting founder-owned industrial businesses in SE Wisconsin ($2.5M–$6M purchase, SBA 7(a)).
 
-TARGET: Revenue $1M–$25M, founded pre-2000, no PE, owner 58–72, cert moat (AS9100/ISO 9001/ITAR/NADCAP/ISO 13485/Mil-Spec).
+TARGET: Revenue $1M–$25M, founded pre-2000, no PE, owner 58–72, certification moat (AS9100, ISO 9001, ITAR, NADCAP, ISO 13485, 3-A, SQF, NSF 61, UL 508A).
 
 COMPANY: ${company} | ${city||'Unknown'}, ${state_||'WI'} | Founded: ${founded||'Unknown'} | Revenue: ${revenue||'Unknown'} | Certs: ${certs||'Unknown'}
 
 Search web and return ONLY valid JSON (no markdown):
-{"owner_name":"string or Unknown","owner_age_est":"range or Unknown","score_age":3,"pe_flag":false,"pe_detail":null,"score_pe":4,"family_in_leadership":"string or Unknown","score_family":2,"certs_confirmed":"string","revenue_est":null,"employee_count":null,"score_founding":3,"score_mgmt":3,"total_score":15,"priority_tier":"Tier 2 — Active Watch","disqualified":false,"disqualify_reason":null,"pipeline_status":"Cold","next_action":"string","succession_signals":[],"red_flags":[],"research_notes":"string","wis_sos_url":null,"linkedin_url":null}
+{"owner_name":"string or Unknown","owner_age_est":"range or Unknown","score_age":3,"pe_flag":false,"pe_detail":null,"score_pe":4,"family_in_leadership":"string or Unknown","score_family":2,"certs_confirmed":"string","cert_moat_score":1,"cert_moat_tier":3,"cert_moat_reason":"string","active_customer_signals":"string or null","acquisition_priority":"A — Call This Week | B — Outreach This Quarter | C — Monitor Only | D — Disqualified","revenue_est":null,"employee_count":null,"score_founding":3,"score_mgmt":3,"total_score":15,"priority_tier":"Tier 2 — Active Watch","disqualified":false,"disqualify_reason":null,"pipeline_status":"Cold","next_action":"string","succession_signals":[],"red_flags":[],"research_notes":"string","wis_sos_url":null,"linkedin_url":null}
 
-Scoring: Age 68+=5,63-67=4,55-62=3,50-54=2,<50=1,unk=3 | PE clean=5,unk=4,partial=3,majority=2,confirmed=1 | Family none=5,non-op=4,1-op=3,2=2,full=1 | Mgmt full=5,GM=4,ops=3,+1=2,alone=1 | Founding pre1990=5,90-95=4,95-2000=3,2000-05=2,post05=1`;
+SUCCESSION SCORING: Age 68+=5,63-67=4,55-62=3,50-54=2,<50=1,unk=3 | PE clean=5,unk=4,partial=3,majority=2,confirmed=1 | Family none=5,non-op=4,1-op=3,2=2,full=1 | Mgmt full=5,GM=4,ops=3,+1=2,alone=1 | Founding pre1990=5,90-95=4,95-2000=3,2000-05=2,post05=1 | Total=sum of 5
+
+CERT MOAT SCORING (cert_moat_score 1-10):
+10=NADCAP with active Boeing/Raytheon process approvals
+9=AS9100+ITAR+confirmed active aerospace/semi OEM qualification
+8=ISO 13485+confirmed FDA-registered medical device supplier
+7=3-A Sanitary with active dairy/food processor customers
+7=SQF Level 3 or BRC Grade A with named major retailer
+6=NSF 61 with active municipal water customers
+6=CMMC 2.0 Level 2 with active DoD contracts
+5=UL 508A with long-term named industrial customers
+4=AS9100 only (no ITAR, no confirmed OEM qualification)
+3=ISO 9001 only
+2=Mil-Spec only
+1=No confirmed certification moat
+
+ACQUISITION PRIORITY:
+A=total_score>=17 AND cert_moat_score>=7
+B=total_score>=14 AND cert_moat_score>=5
+C=one strong one weak
+D=Disqualified (PE, geography, too large, below EBITDA floor)
+
+CUSTOMER CONCENTRATION: Search for any indication that >40% of revenue comes from a single customer. Check: company website testimonials/case studies, news mentions, LinkedIn posts, named OEM relationships. If >40% single-customer concentration found or strongly implied: add to red_flags[] as "CONCENTRATION RISK: [customer name if known]", set acquisition_priority="D — Disqualified", disqualified=true, disqualify_reason="Customer concentration risk (>40% single customer)".
+
+EBITDA FLOOR CHECK: Using revenue_est, estimate EBITDA conservatively at revenue x 0.12. If estimated EBITDA < $350,000: set disqualified=true, disqualify_reason="Below EBITDA floor — est. EBITDA $[X]K vs $350K minimum", acquisition_priority="D — Disqualified". Include EBITDA estimate in research_notes regardless.
+
+CERT VERIFICATION: For AS9100, search IAQG OASIS at ww.oasis.sae.org for company name to confirm active status. For ISO 13485, check NSF International or BSI Group registries. For 3-A Sanitary, check 3-A SSI licensee list. If cert confirmed active, note source in research_notes. If cert appears lapsed, unverifiable, or last renewal >3 years ago: reduce cert_moat_score by 2 and add "Cert status unverified — possible lapse" to red_flags[].`;}
+
 }
 
 function buildFlipPrompt(address, price, type_, beds, sqft, rehab) {
