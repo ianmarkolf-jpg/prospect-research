@@ -1500,6 +1500,16 @@ B=total_score>=14 AND cert_moat_score>=5
 C=one strong one weak
 D=Disqualified (PE, geography, too large, below EBITDA floor)
 
+MOAT GATE — HARD RULE (overrides all other scoring):
+cert_moat_score < 3  → acquisition_priority = "C — Monitor Only" maximum. Cannot be A or B regardless of succession score.
+cert_moat_score 3–4  → acquisition_priority = "B — Outreach This Quarter" maximum. Cannot be A regardless of succession score.
+cert_moat_score >= 5 → normal priority logic applies (use succession + moat thresholds as currently defined).
+This is a hard gate, not a modifier. A perfect succession score (25/25) with a moat score of 3 produces a B maximum.
+
+DEAL SIZE CHECK: If revenue_est > $10,000,000, this deal likely exceeds the solo SBA 7(a) purchase ceiling (~$5M equity injection). Do not auto-disqualify — a capital partner could participate — but: add "DEAL SIZE WARNING: Est. valuation exceeds SBA 7(a) solo ceiling. Capital partner required." to red_flags[], and note the estimated valuation (revenue x 0.55 as a rough proxy) in research_notes. The acquisition_priority grade must reflect this risk — a company cannot score A if it also has a deal size warning unless there is explicit evidence of owner flexibility on structure or price.
+
+INTERNAL SUCCESSION RISK: If a family member has held a President, CEO, COO, or GM title for 5 or more years, this signals internal succession may already be in progress — meaning the founder plans to transfer to family, not sell externally. If this pattern is found: add "INTERNAL SUCCESSION RISK: [name] has been [title] for ~[X] years — external sale appetite uncertain" to red_flags[], reduce score_family by 1, and note the risk explicitly in research_notes. Do not treat a long-tenured family operator as a positive signal.
+
 CUSTOMER CONCENTRATION: Search for any indication that >40% of revenue comes from a single customer. Check: company website testimonials/case studies, news mentions, LinkedIn posts, named OEM relationships. If >40% single-customer concentration found or strongly implied: add to red_flags[] as "CONCENTRATION RISK: [customer name if known]", set acquisition_priority="D — Disqualified", disqualified=true, disqualify_reason="Customer concentration risk (>40% single customer)".
 
 EBITDA FLOOR CHECK: Using revenue_est, estimate EBITDA conservatively at revenue x 0.12. If estimated EBITDA < $350,000: set disqualified=true, disqualify_reason="Below EBITDA floor — est. EBITDA $[X]K vs $350K minimum", acquisition_priority="D — Disqualified". Include EBITDA estimate in research_notes regardless.
