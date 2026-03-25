@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chats Deal Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0f;color:#e2e8f0;font-family:'IBM Plex Mono',monospace;font-size:13px}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0a0a0f}::-webkit-scrollbar-thumb{background:#1e293b;border-radius:2px}
+.header{border-bottom:1px solid #1e293b;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#0a0a0f;z-index:10}
+.logo{font-size:14px;font-weight:700;color:#f8fafc;letter-spacing:-0.02em}
+.tabs{border-bottom:1px solid #1e293b;padding:0 20px;display:flex;overflow-x:auto;background:#0a0a0f;position:sticky;top:49px;z-index:9}
+.tab{padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;font-size:11px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;color:#475569;transition:all 0.15s}
+.tab.active{color:#f8fafc;border-bottom-color:#3b82f6}
+.tab.watch.active{border-bottom-color:#f59e0b}
+.badge{margin-left:5px;background:#111827;color:#374151;border-radius:10px;padding:1px 6px;font-size:10px}
+.tab.active .badge{background:#1e3a5f;color:#60a5fa}
+.tab.watch.active .badge{background:#451a03;color:#f59e0b}
+.filters{padding:8px 20px;border-bottom:1px solid #111827;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.flabel{font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:0.08em}
+.fbtn{border:1px solid #1e293b;padding:3px 10px;border-radius:2px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10px;background:transparent;color:#475569;transition:all 0.15s}
+.fbtn.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
+.divider{width:1px;height:14px;background:#1e293b;margin:0 4px}
+.list{padding:12px 20px;max-width:980px;margin:0 auto;padding-bottom:60px}
+.card{border:1px solid #1e293b;border-radius:4px;margin-bottom:8px;overflow:hidden}
+.card.priority{border-color:#1e3a5f}
+.card.watchcard{border-color:#451a03}
+.card-row{padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:12px}
+.profit-col{min-width:54px;text-align:right;flex-shrink:0}
+.addr-col{flex:1;min-width:0}
+.addr{font-size:12px;font-weight:500;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.addr-sub{font-size:10px;color:#475569;margin-top:2px}
+.tags{display:flex;gap:4px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+.tag{display:inline-block;padding:2px 7px;border-radius:2px;font-size:10px;font-weight:600;letter-spacing:0.04em;border:1px solid}
+.detail{border-top:1px solid #1e293b;padding:14px;background:#0d1117}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:12px}
+.cell{background:#0f1117;border:1px solid #1e293b;border-radius:3px;padding:7px 9px}
+.cell-lbl{font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:0.06em}
+.cell-val{font-size:12px;font-weight:600;margin-top:2px}
+.actions{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap}
+.btn{border:1px solid;padding:5px 12px;border-radius:3px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;background:transparent;transition:all 0.15s;text-decoration:none;display:inline-block}
+.btn:hover{opacity:0.85}
+.script-lbl{font-size:9px;color:#475569;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:7px}
+.script-item{padding:7px 11px;background:#0f1117;border:1px solid #1e293b;border-radius:3px;margin-bottom:5px;font-size:11px;color:#94a3b8;line-height:1.6}
+textarea{background:#0f1117;border:1px solid #1e293b;color:#e2e8f0;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:8px 10px;width:100%;resize:vertical;line-height:1.5}
+textarea:focus{outline:none;border-color:#3b82f6}
+.empty{color:#334155;font-size:12px;padding:50px 0;text-align:center;line-height:2}
+.loading{color:#334155;font-size:12px;padding:80px 0;text-align:center;line-height:2.5}
+.loading-dot{display:inline-block;animation:blink 1s infinite}
+.loading-dot:nth-child(2){animation-delay:0.2s}
+.loading-dot:nth-child(3){animation-delay:0.4s}
+@keyframes blink{0%,80%,100%{opacity:0.2}40%{opacity:1}}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal{background:#0f1117;border:1px solid #1e293b;border-radius:6px;padding:24px;min-width:340px;max-width:520px;width:100%}
+select{background:#0f1117;border:1px solid #1e293b;color:#e2e8f0;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:8px 10px;width:100%;margin-bottom:8px}
+select:focus{outline:none;border-color:#3b82f6}
+.dec-btn{border:1px solid #1e293b;padding:10px 13px;border-radius:3px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:12px;background:#0f1117;color:#94a3b8;width:100%;text-align:left;margin-bottom:7px;transition:all 0.15s}
+.dec-btn:hover{background:#1e293b;color:#e2e8f0}
+.footer{position:fixed;bottom:0;left:0;right:0;background:#0a0a0f;border-top:1px solid #1e293b;padding:6px 20px;font-size:10px;color:#334155;display:flex;justify-content:space-between}
+.sync-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;transition:background 0.3s}
+.error-banner{background:#1a0505;border:1px solid #7f1d1d;border-radius:4px;padding:12px 16px;margin:12px 20px;font-size:11px;color:#f87171;line-height:1.6}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div style="display:flex;align-items:baseline;gap:10px">
+    <span class="logo">CHATS PIPELINE</span>
+    <span style="font-size:9px;color:#334155;letter-spacing:0.1em;text-transform:uppercase">SE Wisconsin · 2026</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <span style="font-size:11px;color:#475569">REPS <span id="reps-hours" style="color:#f59e0b;font-weight:600">—</span>/<span id="reps-target" style="color:#475569">750</span></span>
+    <span style="font-size:11px;color:#475569">Offers <span id="offer-count" style="color:#ef4444;font-weight:600">0</span>/<span id="offers-target" style="color:#475569">10</span></span>
+    <span style="font-size:10px;color:#475569" id="sync-status"><span class="sync-dot" id="sync-dot" style="background:#334155"></span><span id="sync-text">loading...</span></span>
+  </div>
+</div>
+
+<div class="tabs" id="tabs"></div>
+<div class="filters" id="filters"></div>
+<div class="list" id="list"><div class="loading">Loading pipeline data<span class="loading-dot">.</span><span class="loading-dot">.</span><span class="loading-dot">.</span></div></div>
+<div class="modal-overlay" id="modal" style="display:none"></div>
+
+<div class="footer">
+  <span id="footer-left">Live · Google Sheets</span>
+  <span id="footer-right"></span>
+</div>
+
+<script>
+const APPS_URL = 'https://script.google.com/macros/s/AKfycbzc73HXZn0UbZVvtv2D8moshJeXpUf5Lgg13ELt3Y1e7AvrLV_Cwjlx3SmPOnCUaLwN/exec';
+const SHEET_ID = '1983BWMom-RdtxJYT3VSxhkv6vCW-aX3J9L31hFa8EOE';
+const PUBLISH_KEY = '2PACX-1vQ5GH2hU11uaIUJN0p8agG-u8l1GGKX5ooqZEyeXHdWwE20TaUdg5tA6POwjRjLXXImcxb0bMbp_k3R';
+const LOCAL_KEY = 'chats_pipeline_v8'; // v8: decisions keyed by address (stable across arv_engine reruns)
+const TAB_GIDS = {
+  'Pipeline State':     '616828826',
+  'Offers Core':        '392194373',
+  'Offers Luxury':      '2131358226',
+  'Eddies Core':        '3204611',
+  'Eddies Luxury':      '615049422',
+  'Forever Home':       '1645142223',
+  'Premium Renovation': '1116158891',
+  'Stats':              '120316244',
+  'Full Pipeline':      '1940276407',
+  'Pipeline Comps':     '1026517371',
+};
+const EXCLUDE_REASONS = ['Bad neighborhood / zip','Contingent / under contract','Recently flipped / retail finish','Overpriced — no motivation signals','Property type mismatch','Outside buy box','Comp data unreliable','Other'];
+const STAGES = ['review','underwriting','eddie','decision','watchlist','archived','forever_home','premium_reno','full_pipeline'];
+const STAGE_META = {
+  review:        {label:'Review Queue',    sub:'filter & qualify',     watch:false, pipeline:true},
+  underwriting:  {label:'Underwriting',    sub:'run numbers',          watch:false, pipeline:true},
+  eddie:         {label:"Eddie's List",    sub:'agent calls',          watch:false, pipeline:true},
+  decision:      {label:'Decision',        sub:'offer / show',         watch:false, pipeline:true},
+  watchlist:     {label:'Watch List',      sub:'revisit on reduction', watch:true,  pipeline:true},
+  archived:      {label:'Archive',         sub:'excluded',             watch:false, pipeline:true},
+  forever_home:  {label:'Forever Home',    sub:'forever home',         watch:false, pipeline:false},
+  premium_reno:  {label:'Premium Reno',    sub:'dated → luxury',       watch:false, pipeline:false},
+  full_pipeline: {label:'Full Pipeline',   sub:'all actives scored',   watch:false, pipeline:false},
+};
+
+// --- State ---
+let PROPS = [];
+let FH_PROPS = [];
+let PREM_PROPS = [];
+let FP_PROPS = [];   // Full Pipeline — all scored properties
+let dataLoaded = false;
+let loadError = null;
+let COMPS_MAP = {};        // subject_address → [{comp_address, sale_price, sqft, ppsf, condition, distance_mi, sale_date}]
+let compsLoaded = false;
+let compsLoading = false;
+
+const CITY_TO_COUNTY = {
+  // Milwaukee County
+  'Milwaukee':'Milwaukee','Wauwatosa':'Milwaukee','West Allis':'Milwaukee',
+  'Whitefish Bay':'Milwaukee','Shorewood':'Milwaukee','Glendale':'Milwaukee',
+  'Greenfield':'Milwaukee','Greendale':'Milwaukee','Cudahy':'Milwaukee',
+  'South Milwaukee':'Milwaukee','Saint Francis':'Milwaukee','St. Francis':'Milwaukee',
+  'Brown Deer':'Milwaukee','Fox Point':'Milwaukee','Bayside':'Milwaukee',
+  'River Hills':'Milwaukee','Oak Creek':'Milwaukee','Franklin':'Milwaukee',
+  'Hales Corners':'Milwaukee','West Milwaukee':'Milwaukee','Elmwood Park':'Milwaukee',
+  // Waukesha County
+  'Waukesha':'Waukesha','Brookfield':'Waukesha','New Berlin':'Waukesha',
+  'Menomonee Falls':'Waukesha','Hartland':'Waukesha','Oconomowoc':'Waukesha',
+  'Pewaukee':'Waukesha','Muskego':'Waukesha','Elm Grove':'Waukesha',
+  'Sussex':'Waukesha','Butler':'Waukesha','Mukwonago':'Waukesha',
+  'Delafield':'Waukesha','Chenequa':'Waukesha','Wales':'Waukesha',
+  'Dousman':'Waukesha','North Prairie':'Waukesha','Eagle':'Waukesha',
+  'Nashotah':'Waukesha','Summit':'Waukesha','Vernon':'Waukesha','Lannon':'Waukesha',
+  // Racine County
+  'Racine':'Racine','Mount Pleasant':'Racine','Caledonia':'Racine',
+  'Burlington':'Racine','Sturtevant':'Racine','Waterford':'Racine',
+  'Wind Point':'Racine','Union Grove':'Racine','Franksville':'Racine','Norway':'Racine',
+  // Kenosha County
+  'Kenosha':'Kenosha','Pleasant Prairie':'Kenosha','Twin Lakes':'Kenosha',
+  'Bristol':'Kenosha','Paddock Lake':'Kenosha','Silver Lake':'Kenosha',
+  'Salem':'Kenosha','Trevor':'Kenosha','Somers':'Kenosha','Genoa City':'Kenosha',
+  'Salem Lakes':'Kenosha',
+  // Ozaukee County
+  'Port Washington':'Ozaukee','Cedarburg':'Ozaukee','Grafton':'Ozaukee',
+  'Mequon':'Ozaukee','Germantown':'Ozaukee','Thiensville':'Ozaukee',
+  'Saukville':'Ozaukee','Belgium':'Ozaukee','Fredonia':'Ozaukee',
+  // Walworth County
+  'Lake Geneva':'Walworth','Williams Bay':'Walworth','Fontana':'Walworth',
+  'Delavan':'Walworth','Elkhorn':'Walworth','Whitewater':'Walworth',
+  'Lyons':'Walworth','Geneva':'Walworth','Linn':'Walworth','Walworth':'Walworth',
+  'Spring Prairie':'Walworth','Sharon':'Walworth','East Troy':'Walworth',
+  'Bloomfield':'Walworth',
+  // Washington County
+  'West Bend':'Washington','Hartford':'Washington','Slinger':'Washington',
+  'Jackson':'Washington','Kewaskum':'Washington','Lisbon':'Washington',
+};
+
+function parseCity(address){
+  const parts = address.split(',');
+  return parts.length>=2 ? parts[1].trim() : '';
+}
+function parseCounty(address){
+  const city = parseCity(address);
+  return CITY_TO_COUNTY[city]||'Other';
+}
+
+
+function loadLocal(){ try{ return JSON.parse(localStorage.getItem(LOCAL_KEY)||'{}'); }catch{return {}} }
+function saveLocal(m){ try{ localStorage.setItem(LOCAL_KEY,JSON.stringify(m)); }catch{} }
+
+let decisions = loadLocal();
+let activeStage='review', trackFilter='All', sortBy='profit', expanded=null;
+let fpConfFilter='All', fpTypeFilter='All', fpProfitFilter='all', fpSortBy='profit';
+let fpCityFilter='All', fpCountyFilter='All';
+
+function getState(id){
+  // Key decisions by address (stable across arv_engine reruns) with id as fallback
+  const p=PROPS.find(x=>x.id===id);
+  const key=p?p.address:id;
+  return decisions[key]||{stage:'review',notes:'',decision:'',excludeReason:''};
+}
+function getProp(id){ const p=PROPS.find(x=>x.id===id); if(!p) return null; return {...p,...getState(id)}; }
+function allProps(){ return PROPS.map(p=>getProp(p.id)).filter(Boolean); }
+
+// --- Sync to Sheets ---
+function setSyncStatus(status){
+  const dot=document.getElementById('sync-dot');
+  const txt=document.getElementById('sync-text');
+  if(!dot||!txt) return;
+  const map={syncing:['#f59e0b','syncing...'],saved:['#22c55e','saved ✓'],error:['#ef4444','sync failed'],ready:['#22c55e','live'],loading:['#3b82f6','loading...']};
+  const [color,text]=map[status]||map.ready;
+  dot.style.background=color; txt.textContent=text;
+  if(status==='saved') setTimeout(()=>setSyncStatus('ready'),2000);
+}
+
+async function syncToSheets(prop){
+  setSyncStatus('syncing');
+  try{
+    await fetch(APPS_URL, {
+      method:'POST',
+      mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        address:prop.address,
+        stage:prop.stage,
+        notes:prop.notes||'',
+        decision:prop.decision||'',
+        excludeReason:prop.excludeReason||''
+      })
+    });
+    setSyncStatus('saved');
+  } catch(e){
+    setSyncStatus('error');
+    console.error('Sync failed:',e);
+  }
+}
+
+function updateState(id, changes){
+  const p=PROPS.find(x=>x.id===id);
+  const key=p?p.address:id;  // key by address — stable across arv_engine reruns
+  decisions[key] = {...getState(id),...changes};
+  saveLocal(decisions);
+  const prop = getProp(id);
+  if(prop) syncToSheets(prop);
+  render();
+}
+
+// --- CSV Parser ---
+function parseCSV(text){
+  const lines = [];
+  let line = [], field = '', inQuote = false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(c==='"'){
+      if(inQuote&&text[i+1]==='"'){field+='"';i++;}
+      else inQuote=!inQuote;
+    } else if(c===','&&!inQuote){
+      line.push(field.trim()); field='';
+    } else if((c==='\n'||c==='\r')&&!inQuote){
+      if(c==='\r'&&text[i+1]==='\n') i++;
+      line.push(field.trim()); field='';
+      if(line.some(f=>f!=='')) lines.push(line);
+      line=[];
+    } else {
+      field+=c;
+    }
+  }
+  if(field||line.length) { line.push(field.trim()); if(line.some(f=>f!=='')) lines.push(line); }
+  return lines;
+}
+
+function csvToObjects(text){
+  const rows = parseCSV(text);
+  if(rows.length<2) return [];
+  const headers = rows[0].map(h=>h.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,''));
+  return rows.slice(1).map(row=>{
+    const obj={};
+    headers.forEach((h,i)=>{ obj[h]=row[i]||''; });
+    return obj;
+  });
+}
+
+function sheetUrl(tabName){
+  const gid = TAB_GIDS[tabName];
+  return `https://docs.google.com/spreadsheets/d/e/${PUBLISH_KEY}/pub?gid=${gid}&single=true&output=csv`;
+}
+
+// --- Load Pipeline Data from Sheets ---
+async function loadPipelineData(){
+  setSyncStatus('loading');
+  try{
+    // Core pipeline tabs — fatal if these fail
+    const [coreRes, luxRes, eddieCoreRes, eddieCoreLuxRes, stateRes] = await Promise.all([
+      fetch(sheetUrl('Offers Core')),
+      fetch(sheetUrl('Offers Luxury')),
+      fetch(sheetUrl('Eddies Core')),
+      fetch(sheetUrl('Eddies Luxury')),
+      fetch(sheetUrl('Pipeline State')),
+    ]);
+    const [coreText, luxText, eddieCoreText, eddieCoreLuxText, stateText] = await Promise.all([
+      coreRes.text(), luxRes.text(), eddieCoreRes.text(), eddieCoreLuxRes.text(), stateRes.text()
+    ]);
+
+    // Supplemental tabs — non-fatal, degrade gracefully if not yet published
+    const safeFetch = async (tabName) => { try{ const r=await fetch(sheetUrl(tabName)); return await r.text(); }catch(e){ console.warn(tabName+' fetch failed:',e.message); return ''; }};
+    const [fhText, premText, statsText, fpText] = await Promise.all([
+      safeFetch('Forever Home'),
+      safeFetch('Premium Renovation'),
+      safeFetch('Stats'),
+      safeFetch('Full Pipeline'),
+    ]);
+
+    // Update Stats counters in header
+    const statsRows = csvToObjects(statsText);
+    if(statsRows.length>0){
+      const s = statsRows[0];
+      const repsEl = document.getElementById('reps-hours');
+      const repsTarget = document.getElementById('reps-target');
+      const offersTarget = document.getElementById('offers-target');
+      if(repsEl) { repsEl.textContent = s.reps_hours||'30'; }
+      if(repsTarget) { repsTarget.textContent = s.reps_target||'750'; }
+      if(offersTarget) { offersTarget.textContent = s.offers_target||'10'; }
+    }
+
+    const coreRows    = csvToObjects(coreText);
+    const luxRows     = csvToObjects(luxText);
+    const eddieCore   = csvToObjects(eddieCoreText);
+    const eddieLux    = csvToObjects(eddieCoreLuxText);
+    const stateRows   = csvToObjects(stateText);
+    const fhRows      = csvToObjects(fhText);
+    const premRows    = csvToObjects(premText);
+    const fpRows      = csvToObjects(fpText);
+
+    // Build Eddie lookup
+    const eddieMap = {};
+    [...eddieCore, ...eddieLux].forEach(r=>{ if(r.address) eddieMap[r.address]=r; });
+
+    // Build pipeline PROPS
+    const seen = new Set();
+    const allPipelineRows = [];
+    coreRows.forEach(r=>{ if(r.address){ r._track='Core'; allPipelineRows.push(r); seen.add(r.address); }});
+    luxRows.forEach(r=>{ if(r.address){ r._track='Luxury'; allPipelineRows.push(r); seen.add(r.address); }});
+    eddieCore.forEach(r=>{ if(r.address&&!seen.has(r.address)){ r._track='Core'; r._eddieOnly=true; allPipelineRows.push(r); seen.add(r.address); }});
+    eddieLux.forEach(r=>{ if(r.address&&!seen.has(r.address)){ r._track='Luxury'; r._eddieOnly=true; allPipelineRows.push(r); seen.add(r.address); }});
+
+    PROPS = allPipelineRows.map((r,i)=>{
+      const arv       = parseFloat(r.arv)||0;
+      const listPrice = parseFloat(r.list_price)||0;
+      const maoLight  = parseFloat(r.mao_light)||0;
+      const maoMod    = parseFloat(r.mao_moderate)||0;
+      const maoHeavy  = parseFloat(r.mao_heavy)||0;
+      const profit    = parseFloat(r.profit_at_list)||0;
+      const ppsf      = parseFloat(r.median_ppsf)||0;
+      const compCount = parseInt(r.comp_count)||0;
+      const eddie     = r.eddie_call_list==='True'||r.eddie_call_list==='true'||r._eddieOnly;
+      const priority  = r.ian_priority==='True'||r.ian_priority==='true';
+      return {
+        id:'p'+i, address:r.address, arv, listPrice, maoLight, maoMod, maoHeavy,
+        profit, ppsf, compCount, confidence:r.arv_confidence||'Med',
+        track:r._track||'Core', ianPriority:priority, eddieCall:eddie,
+        propertyType:r.property_type||'', gapToMao:parseFloat(r.gap_to_mao)||null,
+        sqft:parseInt(r.sqft)||0,
+        rehabLight:parseFloat(r.rehab_light)||0,
+        rehabMod:parseFloat(r.rehab_moderate)||0,
+        rehabHeavy:parseFloat(r.rehab_heavy)||0,
+        profitLight:parseFloat(r.profit_light)||0,
+        profitHeavy:parseFloat(r.profit_heavy)||0,
+        _type:'pipeline'
+      };
+    });
+
+    // Build Forever Home PROPS
+    FH_PROPS = fhRows.map((r,i)=>({
+      id:'fh'+i, address:r.address,
+      arv:parseFloat(r.arv)||0,
+      listPrice:parseFloat(r.list_price)||0,
+      confidence:r.arv_confidence||'Med',
+      compCount:parseInt(r.comp_count)||0,
+      ppsf:parseFloat(r.median_ppsf)||0,
+      sqft:parseInt(r.sqft)||0,
+      beds:parseInt(r.bedrooms)||0,
+      baths:parseInt(r.full_baths)||0,
+      propertyType:r.property_type||'',
+      zip:r.zip||'', county:r.county||'',
+      tier:r.tier||'A',
+      zillowUrl:r.zillow_url||'',
+      _type:'forever_home'
+    }));
+
+    // Build Premium Reno PROPS
+    PREM_PROPS = premRows.map((r,i)=>({
+      id:'pr'+i, address:r.address,
+      zip:r.zip||'', county:r.county||'',
+      sqft:parseInt(r.sqft)||0,
+      listPrice:parseFloat(r.list_price)||0,
+      arvStandard:parseFloat(r.arv_standard)||0,
+      arvPremium:parseFloat(r.arv_premium)||0,
+      renovationPremium:parseFloat(r.renovation_premium)||0,
+      rehabBudget:parseFloat(r.heavy_rehab_budget)||0,
+      allInCost:parseFloat(r.all_in_cost)||0,
+      netProfit:parseFloat(r.net_profit)||0,
+      captureRatio:parseFloat(r.premium_capture_ratio)||0,
+      excellentComps:parseInt(r.excellent_comp_count)||0,
+      confidence:r.arv_premium_confidence||'LOW',
+      zillowUrl:r.zillow_url||'',
+      inPipeline:false,
+      _type:'premium_reno'
+    }));
+
+    // Build Full Pipeline PROPS — all scored properties, browse/explore only
+    // Build a set of addresses already in main pipeline for promotion dedup
+    const pipelineAddresses = new Set(PROPS.map(p=>p.address));
+    FP_PROPS = fpRows.map((r,i)=>{
+      const arv       = parseFloat(r.arv)||0;
+      const listPrice = parseFloat(r.list_price)||0;
+      const maoMod    = parseFloat(r.mao_moderate)||0;
+      const profit    = parseFloat(r.profit_at_list)||0;
+      const gap       = listPrice>0 ? Math.round(((listPrice-maoMod)/listPrice)*100) : 0;
+      return {
+        id:'fp'+i,
+        address:r.address||'',
+        arv, listPrice, maoMod,
+        maoLight:  parseFloat(r.mao_light)||0,
+        maoHeavy:  parseFloat(r.mao_heavy)||0,
+        profit,
+        gap,
+        ppsf:      parseFloat(r.median_ppsf)||0,
+        compCount: parseInt(r.comp_count)||0,
+        confidence:r.arv_confidence||'Med',
+        propertyType:r.property_type||'',
+        city: parseCity(r.address||''),
+        county: parseCounty(r.address||''),
+        inPipeline: pipelineAddresses.has(r.address),
+        sqft:       parseInt(r.sqft)||0,
+        rehabLight: parseFloat(r.rehab_light)||0,
+        rehabMod:   parseFloat(r.rehab_moderate)||0,
+        rehabHeavy: parseFloat(r.rehab_heavy)||0,
+        profitLight:parseFloat(r.profit_light)||0,
+        profitHeavy:parseFloat(r.profit_heavy)||0,
+        _type:'full_pipeline'
+      };
+    }).filter(p=>p.address);
+
+    
+    const stateMap={};
+    stateRows.forEach(r=>{
+      if(r.address) stateMap[r.address]={
+        stage:r.stage||'review', notes:r.notes||'',
+        decision:r.decision||'', excludeReason:r.excludereason||r.excludeReason||''
+      };
+    });
+
+    PROPS.forEach(p=>{
+      const sheetState = stateMap[p.address];
+      if(sheetState&&sheetState.stage){
+        const local = decisions[p.address]||{};
+        decisions[p.address] = {
+          stage:sheetState.stage,
+          notes:sheetState.notes||local.notes||'',
+          decision:sheetState.decision||local.decision||'',
+          excludeReason:sheetState.excludeReason||local.excludeReason||''
+        };
+      }
+    });
+
+    saveLocal(decisions);
+    dataLoaded=true;
+    loadError=null;
+    setSyncStatus('ready');
+    document.getElementById('footer-left').textContent='Live · Google Sheets · '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  } catch(e){
+    console.error('Pipeline load failed:',e);
+    loadError=e.message;
+    setSyncStatus('error');
+    if(PROPS.length===0){
+      document.getElementById('list').innerHTML=`
+        <div class="error-banner">
+          ⚠ Could not load pipeline data from Google Sheets.<br>
+          Make sure the sheet is published: File → Share → Publish to web.<br>
+          <span style="color:#64748b;font-size:10px">Error: ${e.message}</span>
+        </div>
+        <div class="empty">No cached data available.<br>Publish the sheet and refresh.</div>`;
+      return;
+    }
+  }
+  render();
+}
+
+// --- Lazy-load comps on first card expand ---
+async function loadComps(){
+  if(compsLoaded||compsLoading) return;
+  if(TAB_GIDS['Pipeline Comps']==='0') return; // GID not set yet
+  compsLoading=true;
+  try{
+    const r = await fetch(sheetUrl('Pipeline Comps'));
+    const text = await r.text();
+    const rows = csvToObjects(text);
+    COMPS_MAP={};
+    rows.forEach(r=>{
+      const addr = r.subject_address;
+      if(!addr) return;
+      if(!COMPS_MAP[addr]) COMPS_MAP[addr]=[];
+      COMPS_MAP[addr].push({
+        compAddress: r.comp_address||'',
+        salePrice:   parseFloat(r.sale_price)||0,
+        sqft:        parseInt(r.sqft)||0,
+        ppsf:        parseFloat(r.ppsf)||0,
+        condition:   r.condition||'',
+        distanceMi:  parseFloat(r.distance_mi)||0,
+        saleDate:    r.sale_date||'',
+      });
+    });
+    compsLoaded=true;
+    compsLoading=false;
+    render(); // re-render with comp data now available
+  } catch(e){
+    compsLoading=false;
+    console.warn('Comps load failed:',e.message);
+  }
+}
+function fmt(n){ const a=Math.abs(n); const s=n<0?'-':''; if(a>=1000000) return s+'$'+(a/1000000).toFixed(1).replace(/\.0$/,'')+'M'; if(a>=1000) return s+'$'+(a/1000).toFixed(0)+'K'; return s+'$'+Math.round(a); }
+function fmtFull(n){ return '$'+Math.round(n).toLocaleString(); }
+function profColor(p){ return p>=75000?'#22c55e':p>=40000?'#4ade80':p>=25000?'#f59e0b':'#ef4444'; }
+function confColor(c){ return {High:'#22c55e',Med:'#f59e0b','Low-Adjusted':'#f97316',Low:'#ef4444'}[c]||'#94a3b8'; }
+function zillowUrl(addr){ return 'https://www.zillow.com/homes/'+encodeURIComponent(addr)+'_rb/'; }
+function gapInfo(p){
+  const gap=p.listPrice-p.maoMod;
+  const pct=p.listPrice>0?Math.round((gap/p.listPrice)*100):0;
+  return {gap,pct,verdict:pct<=15?'NEGOTIABLE':pct<=25?'STRETCH':'PASS',color:pct<=15?'#4ade80':pct<=25?'#f59e0b':'#f87171'};
+}
+function callScript(p){
+  const g=gapInfo(p);
+  return [
+    `We're looking at ${p.address.split(',')[0]}. ARV around ${fmt(p.arv)}, list at ${fmt(p.listPrice)} leaves thin margin. Is the seller open below list?`,
+    `Any known issues — roof, mechanicals, foundation, water? Need to price accurately.`,
+    g.pct>15?`We'd need around ${fmt(p.maoMod)} to make the numbers work. Can the seller consider that range?`:`Our range is ${fmt(p.maoMod)}–${fmt(p.maoLight)}. Can we schedule a showing?`
+  ];
+}
+
+function getList(){
+  if(activeStage==='forever_home') return FH_PROPS.slice().sort((a,b)=>a.tier.localeCompare(b.tier)||(b.arv-a.arv));
+  if(activeStage==='premium_reno') return PREM_PROPS.slice().sort((a,b)=>b.netProfit-a.netProfit);
+  if(activeStage==='full_pipeline'){
+    let list = FP_PROPS.slice();
+    if(fpConfFilter!=='All') list=list.filter(p=>p.confidence===fpConfFilter);
+    if(fpTypeFilter!=='All') list=list.filter(p=>p.propertyType.toLowerCase().includes(fpTypeFilter.toLowerCase()));
+    if(fpProfitFilter==='pos')    list=list.filter(p=>p.profit>0);
+    if(fpProfitFilter==='30k')    list=list.filter(p=>p.profit>=30000);
+    if(fpProfitFilter==='neg')    list=list.filter(p=>p.profit<=0);
+    if(fpCountyFilter!=='All') list=list.filter(p=>p.county===fpCountyFilter);
+    if(fpCityFilter!=='All') list=list.filter(p=>p.city===fpCityFilter);
+    list.sort((a,b)=>fpSortBy==='profit'?(b.profit-a.profit):fpSortBy==='gap'?(a.gap-b.gap):(b.listPrice-a.listPrice));
+    return list;
+  }
+  return allProps()
+    .filter(p=>p.stage===activeStage&&(trackFilter==='All'||p.track===trackFilter))
+    .sort((a,b)=>sortBy==='profit'?(b.profit-a.profit):sortBy==='gap'?((a.listPrice-a.maoMod)/Math.max(a.listPrice,1)-(b.listPrice-b.maoMod)/Math.max(b.listPrice,1)):(b.listPrice-a.listPrice));
+}
+function countStage(s){
+  if(s==='forever_home') return FH_PROPS.length;
+  if(s==='premium_reno') return PREM_PROPS.length;
+  if(s==='full_pipeline') return FP_PROPS.length;
+  return allProps().filter(p=>p.stage===s).length;
+}
+function offerCount(){ return allProps().filter(p=>p.decision==='Submit Offer').length; }
+
+// --- Render ---
+function render(){
+  if(!dataLoaded&&PROPS.length===0) return;
+
+  document.getElementById('offer-count').textContent=offerCount();
+  document.getElementById('offer-count').style.color=offerCount()>=10?'#22c55e':'#ef4444';
+  document.getElementById('footer-right').textContent=PROPS.length+' pipeline · '+FH_PROPS.length+' forever home · '+FP_PROPS.length+' full pipeline · '+Object.keys(decisions).length+' decisions';
+
+  const isPipelineTab = STAGE_META[activeStage].pipeline;
+  const isFP = activeStage==='full_pipeline';
+
+  document.getElementById('tabs').innerHTML=STAGES.map(s=>{
+    const m=STAGE_META[s];
+    const isSpecial = !m.pipeline;
+    const cnt = countStage(s);
+    const sub = s==='forever_home' ? cnt+' candidates'
+              : s==='full_pipeline' ? cnt+' active scored'
+              : m.sub;
+    return `<div class="tab ${s===activeStage?'active':''} ${m.watch?'watch':''}" onclick="setStage('${s}')" style="${isSpecial?'border-left:1px solid #1e293b;margin-left:4px':''}">
+      ${m.label}<span class="badge">${cnt}</span>
+      <div style="font-size:9px;color:#334155;margin-top:1px">${sub}</div>
+    </div>`;
+  }).join('');
+
+  if(isFP){
+    // Build county options from actual data
+    const counties = ['All',...new Set(FP_PROPS.map(p=>p.county).filter(c=>c&&c!=='Other').sort()),'Other'];
+    // Build city options — filtered by county if one is selected
+    const cityPool = fpCountyFilter==='All' ? FP_PROPS : FP_PROPS.filter(p=>p.county===fpCountyFilter);
+    const cities = ['All',...new Set(cityPool.map(p=>p.city).filter(Boolean).sort())];
+
+    document.getElementById('filters').innerHTML=`
+      <span class="flabel">Profit</span>
+      ${[['all','All'],['30k','$30K+'],['pos','Positive'],['neg','Negative']].map(([k,l])=>`<button class="fbtn ${fpProfitFilter===k?'active':''}" onclick="setFpFilter('profit','${k}')">${l}</button>`).join('')}
+      <div class="divider"></div>
+      <span class="flabel">County</span>
+      <select onchange="setFpFilter('county',this.value)" style="background:#0f1117;border:1px solid #1e293b;color:#e2e8f0;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 7px;height:24px">
+        ${counties.map(c=>`<option value="${c}" ${fpCountyFilter===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+      <div class="divider"></div>
+      <span class="flabel">City</span>
+      <select onchange="setFpFilter('city',this.value)" style="background:#0f1117;border:1px solid #1e293b;color:#e2e8f0;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 7px;height:24px">
+        ${cities.map(c=>`<option value="${c}" ${fpCityFilter===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+      <div class="divider"></div>
+      <span class="flabel">Confidence</span>
+      ${[['All','All'],['High','High'],['Med','Med'],['Low-Adjusted','Low']].map(([k,l])=>`<button class="fbtn ${fpConfFilter===k?'active':''}" onclick="setFpFilter('conf','${k}')">${l}</button>`).join('')}
+      <div class="divider"></div>
+      <span class="flabel">Type</span>
+      ${[['All','All'],['Single','SFR'],['Two','2-Fam']].map(([k,l])=>`<button class="fbtn ${fpTypeFilter===k?'active':''}" onclick="setFpFilter('type','${k}')">${l}</button>`).join('')}
+      <div class="divider"></div>
+      <span class="flabel">Sort</span>
+      ${[['profit','Profit'],['gap','Gap %'],['price','Price']].map(([k,l])=>`<button class="fbtn ${fpSortBy===k?'active':''}" onclick="setFpFilter('sort','${k}')">${l}</button>`).join('')}
+      <div class="divider"></div>
+      <button class="fbtn" onclick="refreshData()">⟳ Refresh</button>
+    `;
+  } else {
+    document.getElementById('filters').innerHTML=isPipelineTab?`
+      <span class="flabel">Track</span>
+      ${['All','Core','Luxury'].map(t=>`<button class="fbtn ${trackFilter===t?'active':''}" onclick="setTrack('${t}')">${t}</button>`).join('')}
+      <div class="divider"></div>
+      <span class="flabel">Sort</span>
+      ${[['profit','Profit'],['gap','Gap %'],['price','Price']].map(([k,l])=>`<button class="fbtn ${sortBy===k?'active':''}" onclick="setSort('${k}')">${l}</button>`).join('')}
+      <div class="divider"></div>
+      <button class="fbtn" onclick="refreshData()" title="Reload from Google Sheets">⟳ Refresh</button>
+    `:`<button class="fbtn" onclick="refreshData()" title="Reload from Google Sheets">⟳ Refresh</button>`;
+  }
+
+  const list=getList();
+  if(!list.length){
+    const msgs={
+      watchlist:'Watch list empty — move properties here to revisit on price reduction.',
+      archived:'No excluded properties.',
+      review:'All properties reviewed.',
+      forever_home:'No forever home candidates found.',
+      premium_reno:'No premium renovation candidates found.',
+      full_pipeline:'No properties match current filters.'
+    };
+    document.getElementById('list').innerHTML=`<div class="empty">${msgs[activeStage]||'No properties in this stage.'}</div>`;
+    return;
+  }
+  if(activeStage==='forever_home'){
+    document.getElementById('list').innerHTML=list.map(p=>renderFHCard(p)).join('');
+  } else if(activeStage==='premium_reno'){
+    document.getElementById('list').innerHTML=list.map(p=>renderPremCard(p)).join('');
+  } else if(activeStage==='full_pipeline'){
+    document.getElementById('list').innerHTML=list.map(p=>renderFPCard(p)).join('');
+  } else {
+    document.getElementById('list').innerHTML=list.map(p=>renderCard(p)).join('');
+  }
+}
+
+function compsTable(address){
+  const comps = COMPS_MAP[address];
+  if(compsLoading) return `<div style="font-size:10px;color:#334155;margin-bottom:11px">Loading comps<span class="loading-dot">.</span><span class="loading-dot">.</span><span class="loading-dot">.</span></div>`;
+  if(TAB_GIDS['Pipeline Comps']==='0') return `<div style="font-size:10px;color:#334155;margin-bottom:11px">⚠ Update Pipeline Comps GID in TAB_GIDS to enable comp detail.</div>`;
+  if(!compsLoaded) return `<div style="font-size:10px;color:#334155;margin-bottom:11px">Comps not loaded.</div>`;
+  if(!comps||comps.length===0) return `<div style="font-size:10px;color:#334155;margin-bottom:11px">No comps available for this property.</div>`;
+  const condColor = c => c==='excellent'?'#22c55e':c==='good'?'#4ade80':'#94a3b8';
+  return `<div style="margin-bottom:11px">
+    <div style="font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px">ARV Comps (${comps.length})</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead>
+        <tr style="color:#334155;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">
+          <td style="padding:3px 8px 3px 0">Address</td>
+          <td style="padding:3px 6px;text-align:right">Price</td>
+          <td style="padding:3px 6px;text-align:right">Sqft</td>
+          <td style="padding:3px 6px;text-align:right">$/sf</td>
+          <td style="padding:3px 6px;text-align:right">Mi</td>
+          <td style="padding:3px 0;text-align:right">Date</td>
+        </tr>
+      </thead>
+      <tbody>
+        ${comps.map(c=>`
+          <tr style="border-top:1px solid #1e293b">
+            <td style="padding:4px 8px 4px 0;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="${zillowUrl(c.compAddress)}" target="_blank" style="color:#94a3b8;text-decoration:none" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='#94a3b8'">${c.compAddress.split(',')[0]}</a></td>
+            <td style="padding:4px 6px;text-align:right;color:#e2e8f0;font-weight:600">${fmt(c.salePrice)}</td>
+            <td style="padding:4px 6px;text-align:right;color:#64748b">${c.sqft.toLocaleString()}</td>
+            <td style="padding:4px 6px;text-align:right;color:#60a5fa">$${c.ppsf.toFixed(0)}</td>
+            <td style="padding:4px 6px;text-align:right;color:#64748b">${c.distanceMi.toFixed(2)}</td>
+            <td style="padding:4px 0;text-align:right;color:#334155;font-size:10px">${c.saleDate?c.saleDate.slice(2):''}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function rehabTable(p){
+  const fmtK = n => { const a=Math.abs(n); const s=n<0?'-':''; if(a>=1000000) return s+'$'+(a/1000000).toFixed(1).replace(/\.0$/,'')+'M'; return s+'$'+Math.round(a/1000)+'K'; };
+  const profColor2 = n => n>=30000?'#4ade80':n>=25000?'#f59e0b':n>=0?'#f97316':'#ef4444';
+  const verdict = n => n>=30000?'GO':n>=25000?'COND':'PASS';
+  const vColor  = n => n>=30000?'#4ade80':n>=25000?'#f59e0b':'#ef4444';
+  const rows = [
+    ['Light',  p.rehabLight,  p.profitLight,  p.maoLight],
+    ['Mod',    p.rehabMod,    p.profit,        p.maoMod],
+    ['Heavy',  p.rehabHeavy,  p.profitHeavy,  p.maoHeavy],
+  ];
+  const sqftLine = p.sqft>0?` · ${p.sqft.toLocaleString()} sqft`:'';
+  return `<div style="margin-bottom:11px">
+    <div style="font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px">Rehab Tiers${sqftLine}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead>
+        <tr style="color:#334155;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">
+          <td style="padding:3px 8px 3px 0">Tier</td>
+          <td style="padding:3px 8px;text-align:right">Rehab</td>
+          <td style="padding:3px 8px;text-align:right">Profit</td>
+          <td style="padding:3px 8px;text-align:right">MAO</td>
+          <td style="padding:3px 0;text-align:right">Verdict</td>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(([label,rehab,profit,mao])=>`
+          <tr style="border-top:1px solid #1e293b">
+            <td style="padding:4px 8px 4px 0;color:#64748b;font-weight:500">${label}</td>
+            <td style="padding:4px 8px;text-align:right;color:#94a3b8">${fmtK(rehab)}</td>
+            <td style="padding:4px 8px;text-align:right;color:${profColor2(profit)};font-weight:600">${fmt(profit)}</td>
+            <td style="padding:4px 8px;text-align:right;color:#60a5fa">${fmtK(mao)}</td>
+            <td style="padding:4px 0;text-align:right;color:${vColor(profit)};font-weight:700;font-size:10px">${verdict(profit)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function renderCard(p){
+  const g=gapInfo(p);
+  const isExp=expanded===p.id;
+  const isWatch=p.stage==='watchlist';
+
+  const tagHtml=[
+    [p.confidence,confColor(p.confidence)],
+    [p.track,p.track==='Core'?'#64748b':'#a78bfa'],
+    [g.verdict,g.color],
+    ...(p.eddieCall&&p.stage==='review'?[['EDDIE','#06b6d4']]:isWatch?[['WATCHING','#f59e0b']]:p.decision?[[p.decision,'#60a5fa']]:[])
+  ].map(([l,c])=>`<span class="tag" style="background:${c}22;color:${c};border-color:${c}44">${l}</span>`).join('');
+
+  let detail='';
+  if(isExp){
+    const cells=[
+      ['List Price',fmtFull(p.listPrice),'#94a3b8'],['ARV',fmtFull(p.arv),'#e2e8f0'],
+      ['MAO Mod',fmtFull(p.maoMod),'#60a5fa'],['Gap',fmt(g.gap)+' ('+g.pct+'%)',g.color],
+      ['MAO Light',fmtFull(p.maoLight),'#64748b'],['MAO Heavy',fmtFull(p.maoHeavy),'#64748b'],
+      ['Profit',fmt(p.profit),profColor(p.profit)],['PPSF','$'+p.ppsf.toFixed(0),'#64748b'],
+      ['Sqft',p.sqft>0?p.sqft.toLocaleString():'—','#64748b'],
+    ].map(([l,v,c])=>`<div class="cell"><div class="cell-lbl">${l}</div><div class="cell-val" style="color:${c}">${v}</div></div>`).join('');
+
+    const vb=g.pct<=15?'#14532d':g.pct<=25?'#451a03':'#450a0a';
+    const vm=g.pct<=15?'✓ NEGOTIABLE — gap within 15%. Eddie call priority.':g.pct<=25?'⚠ STRETCH — needs motivation signals.':'✕ PASS — gap exceeds 25%.';
+
+    const zilBtn=`<a href="${zillowUrl(p.address)}" target="_blank" class="btn" style="border-color:#1d4ed8;color:#60a5fa;background:#1e3a5f22">↗ Zillow</a>`;
+    const exclBtn=`<button class="btn" style="border-color:#7f1d1d;color:#f87171;background:#7f1d1d22" onclick="event.stopPropagation();openExclude('${p.id}')">✕ Exclude</button>`;
+    const watchBtn=`<button class="btn" style="border-color:#713f12;color:#f59e0b;background:#451a0322" onclick="event.stopPropagation();updateState('${p.id}',{stage:'watchlist'})">👁 Watch</button>`;
+
+    let actionBtns='';
+    if(p.stage==='review') actionBtns=`${zilBtn}<button class="btn" style="border-color:#166534;color:#4ade80;background:#14532d22" onclick="event.stopPropagation();updateState('${p.id}',{stage:'underwriting'})">→ Underwriting</button>${watchBtn}${exclBtn}`;
+    else if(p.stage==='underwriting') actionBtns=`${zilBtn}<button class="btn" style="border-color:#166534;color:#4ade80;background:#14532d22" onclick="event.stopPropagation();updateState('${p.id}',{stage:'eddie'})">→ Send to Eddie</button>${watchBtn}${exclBtn}`;
+    else if(p.stage==='eddie') actionBtns=`${zilBtn}<button class="btn" style="border-color:#4a1d96;color:#c084fc;background:#4a1d9622" onclick="event.stopPropagation();openDecision('${p.id}')">📋 Log Decision</button>${watchBtn}${exclBtn}`;
+    else if(p.stage==='decision') actionBtns=`${zilBtn}<button class="btn" style="border-color:#166534;color:#4ade80;background:#14532d22">📝 Draft Offer</button>${watchBtn}${exclBtn}`;
+    else if(p.stage==='watchlist') actionBtns=`${zilBtn}<button class="btn" style="border-color:#166534;color:#4ade80;background:#14532d22" onclick="event.stopPropagation();updateState('${p.id}',{stage:'review',decision:''})">↩ Back to Review</button><button class="btn" style="border-color:#1d4ed8;color:#60a5fa;background:#1e3a5f22" onclick="event.stopPropagation();updateState('${p.id}',{stage:'underwriting'})">→ Underwriting</button>${exclBtn}`;
+    else if(p.stage==='archived') actionBtns=`${zilBtn}<button class="btn" style="border-color:#166534;color:#4ade80;background:#14532d22" onclick="event.stopPropagation();updateState('${p.id}',{stage:'review',decision:'',excludeReason:''})">↩ Restore</button>`;
+
+    const scriptHtml=(p.stage==='eddie'||p.stage==='underwriting')?`
+      <div style="margin-bottom:12px">
+        <div class="script-lbl">Call Script for Eddie</div>
+        ${callScript(p).map((q,i)=>`<div class="script-item"><span style="color:#334155;margin-right:7px;font-weight:600">${i+1}.</span>${q}</div>`).join('')}
+      </div>`:'';
+
+    const watchBanner=isWatch?`<div style="margin-bottom:11px;padding:6px 10px;background:#1a0e00;border:1px solid #451a03;border-radius:3px;font-size:11px;color:#f59e0b">👁 Watching — revisit when price reduction or motivation signals strengthen.</div>`:'';
+    const exclNote=(p.stage==='archived'&&p.excludeReason)?`<div style="margin-top:8px;padding:6px 10px;background:#0f1117;border:1px solid #3b1f1f;border-radius:3px;font-size:11px;color:#f87171">Excluded: ${p.excludeReason}${p.notes?' — '+p.notes:''}</div>`:'';
+
+    detail=`<div class="detail">
+      <div class="grid4">${cells}</div>
+      ${compsTable(p.address)}
+      ${p.sqft>0&&p.rehabMod>0?rehabTable(p):''}
+      <div style="margin-bottom:11px;font-size:11px;padding:6px 10px;border-radius:3px;color:${g.color};background:#0f1117;border:1px solid ${vb}">${vm}</div>
+      ${watchBanner}
+      <div class="actions">${actionBtns}</div>
+      ${scriptHtml}
+      <div style="font-size:9px;color:#475569;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">Notes</div>
+      <textarea rows="2" placeholder="Agent notes, call log, condition observations..." onchange="updateState('${p.id}',{notes:this.value})" onclick="event.stopPropagation()">${p.notes||''}</textarea>
+      ${exclNote}
+    </div>`;
+  }
+
+  return `<div class="card${p.ianPriority?' priority':''}${isWatch?' watchcard':''}" id="card-${p.id}">
+    <div class="card-row" onclick="toggleExpand('${p.id}')">
+      ${p.ianPriority?'<div style="width:5px;height:5px;border-radius:50%;background:#3b82f6;flex-shrink:0"></div>':''}
+      <div class="profit-col">
+        <div style="font-size:13px;font-weight:600;color:${profColor(p.profit)}">${fmt(p.profit)}</div>
+        <div style="font-size:9px;color:#334155;margin-top:1px">profit</div>
+      </div>
+      <div class="addr-col">
+        <div class="addr">${p.address}</div>
+        <div class="addr-sub">List ${fmt(p.listPrice)} · ARV ${fmt(p.arv)} · MAO ${fmt(p.maoMod)} · ${p.compCount} comps</div>
+      </div>
+      <div class="tags">${tagHtml}</div>
+      <div style="color:#334155;font-size:10px;flex-shrink:0">${isExp?'▲':'▼'}</div>
+    </div>
+    ${detail}
+  </div>`;
+}
+
+function renderFHCard(p){
+  const isExp = expanded===p.id;
+  const upside = p.arv>0&&p.listPrice>0 ? Math.round(((p.arv-p.listPrice)/p.listPrice)*100) : 0;
+  const tierColor = p.tier==='A'?'#22c55e':'#f59e0b';
+
+  let detail='';
+  if(isExp){
+    const cells=[
+      ['List Price',fmtFull(p.listPrice),'#94a3b8'],
+      ['ARV',fmtFull(p.arv),'#e2e8f0'],
+      ['Upside','+'+upside+'%','#4ade80'],
+      ['Confidence',p.confidence,confColor(p.confidence)],
+      ['Sqft',p.sqft.toLocaleString(),'#64748b'],
+      ['Beds / Baths',p.beds+' bd / '+p.baths+' ba','#64748b'],
+      ['PPSF','$'+p.ppsf.toFixed(0),'#64748b'],
+      ['Comps',p.compCount,'#64748b'],
+    ].map(([l,v,c])=>`<div class="cell"><div class="cell-lbl">${l}</div><div class="cell-val" style="color:${c}">${v}</div></div>`).join('');
+    const zilBtn=p.zillowUrl?`<a href="${p.zillowUrl}" target="_blank" class="btn" style="border-color:#1d4ed8;color:#60a5fa;background:#1e3a5f22">↗ Zillow</a>`:'';
+    detail=`<div class="detail">
+      <div class="grid4">${cells}</div>
+      <div class="actions">${zilBtn}</div>
+      <div style="font-size:9px;color:#475569;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">Notes</div>
+      <textarea rows="2" placeholder="Neighborhood notes, visit observations, Jaimie thoughts..." onclick="event.stopPropagation()">${''}</textarea>
+    </div>`;
+  }
+
+  return `<div class="card" id="card-${p.id}">
+    <div class="card-row" onclick="toggleExpand('${p.id}')">
+      <div class="profit-col">
+        <div style="font-size:13px;font-weight:600;color:${tierColor}">T${p.tier}</div>
+        <div style="font-size:9px;color:#334155;margin-top:1px">tier</div>
+      </div>
+      <div class="addr-col">
+        <div class="addr">${p.address}</div>
+        <div class="addr-sub">List ${fmt(p.listPrice)} · ARV ${fmt(p.arv)} · ${p.sqft.toLocaleString()} sqft · ${p.beds}bd/${p.baths}ba · ${p.zip}</div>
+      </div>
+      <div class="tags">
+        <span class="tag" style="background:${tierColor}22;color:${tierColor};border-color:${tierColor}44">Tier ${p.tier}</span>
+        <span class="tag" style="background:#22c55e22;color:#22c55e;border-color:#22c55e44">+${upside}% upside</span>
+        <span class="tag" style="background:${confColor(p.confidence)}22;color:${confColor(p.confidence)};border-color:${confColor(p.confidence)}44">${p.confidence}</span>
+      </div>
+      <div style="color:#334155;font-size:10px;flex-shrink:0">${isExp?'▲':'▼'}</div>
+    </div>
+    ${detail}
+  </div>`;
+}
+
+function promotePremToPipeline(id){
+  const p = PREM_PROPS.find(x=>x.id===id);
+  if(!p) return;
+  if(!PROPS.find(x=>x.address===p.address)){
+    const newProp = {
+      id:'pp'+PROPS.length, address:p.address,
+      arv:p.arvPremium, listPrice:p.listPrice,
+      maoLight:null, maoMod:null, maoHeavy:null,
+      profit:p.netProfit, ppsf:null, compCount:p.excellentComps,
+      confidence:p.confidence, track:'Core', ianPriority:false,
+      eddieCall:false, propertyType:'Single-Family', gapToMao:null,
+      _type:'pipeline'
+    };
+    PROPS.push(newProp);
+    p.inPipeline=true;
+    updateState(newProp.id, {stage:'review'});
+  }
+  render();
+}
+
+function renderPremCard(p){
+  const isExp = expanded===p.id;
+  const confColor2 = p.confidence==='HIGH'?'#22c55e':p.confidence==='MEDIUM'?'#f59e0b':'#ef4444';
+
+  let detail='';
+  if(isExp){
+    const cells=[
+      ['List Price',fmtFull(p.listPrice),'#94a3b8'],
+      ['ARV Standard',fmtFull(p.arvStandard),'#64748b'],
+      ['ARV Premium',fmtFull(p.arvPremium),'#e2e8f0'],
+      ['Reno Premium',fmt(p.renovationPremium),'#4ade80'],
+      ['Rehab Budget',fmt(p.rehabBudget),'#f59e0b'],
+      ['All-In Cost',fmt(p.allInCost),'#94a3b8'],
+      ['Net Profit',fmt(p.netProfit),p.netProfit>=75000?'#22c55e':'#f59e0b'],
+      ['Capture Ratio',p.captureRatio.toFixed(2)+'×',p.captureRatio>=1.5?'#22c55e':'#f59e0b'],
+    ].map(([l,v,c])=>`<div class="cell"><div class="cell-lbl">${l}</div><div class="cell-val" style="color:${c}">${v}</div></div>`).join('');
+    const zilBtn=`<a href="${zillowUrl(p.address)}" target="_blank" class="btn" style="border-color:#1d4ed8;color:#60a5fa;background:#1e3a5f22">↗ Zillow</a>`;
+    const promoteBtn = p.inPipeline
+      ? `<button class="btn" style="border-color:#334155;color:#475569;cursor:default">✓ In Pipeline</button>`
+      : `<button class="btn" style="border-color:#166534;color:#4ade80;background:#14532d22" onclick="event.stopPropagation();promotePremToPipeline('${p.id}')">→ Add to Review Queue</button>`;
+    const confNote=p.confidence!=='HIGH'?`<div style="margin-bottom:11px;padding:6px 10px;background:#1a0e00;border:1px solid #451a03;border-radius:3px;font-size:11px;color:#f59e0b">⚠ ${p.confidence} CONFIDENCE — only ${p.excellentComps} Excellent condition comp(s) within 0.75mi. Verify before acting.</div>`:'';
+    detail=`<div class="detail">
+      <div class="grid4">${cells}</div>
+      ${compsTable(p.address)}
+      ${confNote}
+      <div class="actions">${zilBtn}${promoteBtn}</div>
+    </div>`;
+  }
+
+  return `<div class="card${p.inPipeline?' priority':''}" id="card-${p.id}">
+    <div class="card-row" onclick="toggleExpand('${p.id}')">
+      <div class="profit-col">
+        <div style="font-size:13px;font-weight:600;color:${p.netProfit>=75000?'#22c55e':'#f59e0b'}">${fmt(p.netProfit)}</div>
+        <div style="font-size:9px;color:#334155;margin-top:1px">net profit</div>
+      </div>
+      <div class="addr-col">
+        <div class="addr">${p.address}</div>
+        <div class="addr-sub">List ${fmt(p.listPrice)} · ARV Premium ${fmt(p.arvPremium)} · ${p.sqft.toLocaleString()} sqft · ${p.zip}</div>
+      </div>
+      <div class="tags">
+        ${p.inPipeline?`<span class="tag" style="background:#1e3a5f;color:#60a5fa;border-color:#3b82f644">IN PIPELINE</span>`:''}
+        <span class="tag" style="background:${confColor2}22;color:${confColor2};border-color:${confColor2}44">${p.confidence}</span>
+        <span class="tag" style="background:#a78bfa22;color:#a78bfa;border-color:#a78bfa44">${p.captureRatio.toFixed(1)}× capture</span>
+      </div>
+      <div style="color:#334155;font-size:10px;flex-shrink:0">${isExp?'▲':'▼'}</div>
+    </div>
+    ${detail}
+  </div>`;
+}
+
+
+function setStage(s){activeStage=s;expanded=null;render();}
+function setTrack(t){trackFilter=t;render();}
+function setSort(s){sortBy=s;render();}
+function toggleExpand(id){
+  expanded=expanded===id?null:id;
+  if(expanded) loadComps();
+  render();
+}
+
+async function refreshData(){
+  PROPS=[]; FH_PROPS=[]; PREM_PROPS=[]; FP_PROPS=[];
+  dataLoaded=false;
+  document.getElementById('list').innerHTML='<div class="loading">Refreshing pipeline data<span class="loading-dot">.</span><span class="loading-dot">.</span><span class="loading-dot">.</span></div>';
+  await loadPipelineData();
+}
+
+function openExclude(id){
+  const p=getProp(id);
+  if(!p) return;
+  const modal=document.getElementById('modal');
+  modal.style.display='flex';
+  modal.innerHTML=`<div class="modal">
+    <div style="font-size:13px;font-weight:600;color:#f1f5f9;margin-bottom:5px">Exclude Property</div>
+    <div style="font-size:11px;color:#475569;margin-bottom:14px">${p.address}</div>
+    <div style="font-size:9px;color:#64748b;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.08em">Reason *</div>
+    <select id="excl-reason">
+      <option value="">Select reason...</option>
+      ${EXCLUDE_REASONS.map(r=>`<option value="${r}">${r}</option>`).join('')}
+    </select>
+    <div style="font-size:9px;color:#64748b;margin-bottom:5px;margin-top:8px;text-transform:uppercase;letter-spacing:0.08em">Note (optional)</div>
+    <textarea id="excl-note" rows="2" placeholder="Add context..." style="margin-bottom:14px;resize:none"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" style="border-color:#1e293b;color:#64748b" onclick="closeModal()">Cancel</button>
+      <button class="btn" style="border-color:#7f1d1d;color:#f87171;background:#7f1d1d33" onclick="doExclude('${id}')">Exclude</button>
+    </div>
+  </div>`;
+}
+
+function doExclude(id){
+  const reason=document.getElementById('excl-reason').value;
+  if(!reason) return;
+  const note=document.getElementById('excl-note').value;
+  updateState(id,{stage:'archived',excludeReason:reason,notes:note,decision:'Excluded'});
+  closeModal();
+}
+
+function openDecision(id){
+  const p=getProp(id);
+  if(!p) return;
+  const modal=document.getElementById('modal');
+  modal.style.display='flex';
+  modal.innerHTML=`<div class="modal">
+    <div style="font-size:13px;font-weight:600;color:#f1f5f9;margin-bottom:5px">Log Decision</div>
+    <div style="font-size:11px;color:#475569;margin-bottom:14px">${p.address}</div>
+    ${[['🏠 Schedule Showing','Schedule Showing'],['📝 Submit Offer','Submit Offer'],['👁 Watch List','Watch List'],['✕ Exclude','Exclude']].map(([l,v])=>`<button class="dec-btn" onclick="doDecision('${id}','${v}')">${l}</button>`).join('')}
+    <button class="btn" style="border-color:#1e293b;color:#475569;margin-top:4px" onclick="closeModal()">Cancel</button>
+  </div>`;
+}
+
+function doDecision(id,decision){
+  if(decision==='Exclude'){closeModal();openExclude(id);return;}
+  const stage=decision==='Watch List'?'watchlist':'decision';
+  updateState(id,{stage,decision});
+  closeModal();
+}
+
+function closeModal(){document.getElementById('modal').style.display='none';}
+document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+function setFpFilter(type, val){
+  if(type==='profit') fpProfitFilter=val;
+  else if(type==='conf') fpConfFilter=val;
+  else if(type==='type') fpTypeFilter=val;
+  else if(type==='sort') fpSortBy=val;
+  else if(type==='county'){ fpCountyFilter=val; fpCityFilter='All'; } // reset city when county changes
+  else if(type==='city') fpCityFilter=val;
+  render();
+}
+
+function promoteToPipeline(id){
+  const p = FP_PROPS.find(x=>x.id===id);
+  if(!p) return;
+  // Add to PROPS if not already present
+  if(!PROPS.find(x=>x.address===p.address)){
+    const newProp = {
+      id:'pp'+PROPS.length, address:p.address,
+      arv:p.arv, listPrice:p.listPrice,
+      maoLight:p.maoLight, maoMod:p.maoMod, maoHeavy:p.maoHeavy,
+      profit:p.profit, ppsf:p.ppsf, compCount:p.compCount,
+      confidence:p.confidence, track:'Core', ianPriority:false,
+      eddieCall:false, propertyType:p.propertyType, gapToMao:null,
+      sqft:p.sqft,
+      rehabLight:p.rehabLight, rehabMod:p.rehabMod, rehabHeavy:p.rehabHeavy,
+      profitLight:p.profitLight, profitHeavy:p.profitHeavy,
+      _type:'pipeline'
+    };
+    PROPS.push(newProp);
+    p.inPipeline=true;
+    updateState(newProp.id, {stage:'review'});
+  }
+  render();
+}
+
+function renderFPCard(p){
+  const isExp = expanded===p.id;
+  const profitColor = p.profit>=75000?'#22c55e':p.profit>=30000?'#4ade80':p.profit>=0?'#f59e0b':'#ef4444';
+  const gapColor = p.gap<=15?'#4ade80':p.gap<=25?'#f59e0b':'#f87171';
+  const gapLabel = p.gap<=15?'NEGOTIABLE':p.gap<=25?'STRETCH':'PASS';
+
+  let detail='';
+  if(isExp){
+    const cells=[
+      ['List Price',   fmtFull(p.listPrice),   '#94a3b8'],
+      ['ARV',          fmtFull(p.arv),          '#e2e8f0'],
+      ['MAO Moderate', fmtFull(p.maoMod),       '#60a5fa'],
+      ['Profit @ List',fmt(p.profit),           profitColor],
+      ['Gap to MAO',   p.gap+'%',               gapColor],
+      ['Sqft',         p.sqft>0?p.sqft.toLocaleString():'—', '#64748b'],
+      ['$/sqft',       '$'+p.ppsf.toFixed(0),  '#64748b'],
+      ['Comps',        p.compCount+'',          '#64748b'],
+      ['Type',         p.propertyType||'—',    '#64748b'],
+    ].map(([l,v,c])=>`<div class="cell"><div class="cell-lbl">${l}</div><div class="cell-val" style="color:${c}">${v}</div></div>`).join('');
+    const zilBtn=`<a href="${zillowUrl(p.address)}" target="_blank" class="btn" style="border-color:#1d4ed8;color:#60a5fa;background:#1e3a5f22">↗ Zillow</a>`;
+    const promoteBtn = p.inPipeline
+      ? `<button class="btn" style="border-color:#334155;color:#475569;cursor:default">✓ In Pipeline</button>`
+      : `<button class="btn" style="border-color:#166534;color:#4ade80;background:#14532d22" onclick="event.stopPropagation();promoteToPipeline('${p.id}')">→ Add to Review Queue</button>`;
+    detail=`<div class="detail">
+      <div class="grid4">${cells}</div>
+      ${compsTable(p.address)}
+      ${p.sqft>0&&p.rehabMod>0?rehabTable(p):''}
+      <div class="actions">${zilBtn}${promoteBtn}</div>
+    </div>`;
+  }
+
+  return `<div class="card${p.inPipeline?' priority':''}" id="card-${p.id}">
+    <div class="card-row" onclick="toggleExpand('${p.id}')">
+      <div class="profit-col">
+        <div style="font-size:13px;font-weight:600;color:${profitColor}">${fmt(p.profit)}</div>
+        <div style="font-size:9px;color:#334155;margin-top:1px">profit</div>
+      </div>
+      <div class="addr-col">
+        <div class="addr">${p.address}</div>
+        <div class="addr-sub">List ${fmt(p.listPrice)} · ARV ${fmt(p.arv)} · MAO ${fmt(p.maoMod)} · Gap ${p.gap}% · ${p.city||''}</div>
+      </div>
+      <div class="tags">
+        <span class="tag" style="background:${confColor(p.confidence)}22;color:${confColor(p.confidence)};border-color:${confColor(p.confidence)}44">${p.confidence}</span>
+        <span class="tag" style="background:${gapColor}22;color:${gapColor};border-color:${gapColor}44">${gapLabel}</span>
+        ${p.inPipeline?`<span class="tag" style="background:#1e3a5f;color:#60a5fa;border-color:#3b82f644">IN PIPELINE</span>`:''}
+      </div>
+      <div style="color:#334155;font-size:10px;flex-shrink:0">${isExp?'▲':'▼'}</div>
+    </div>
+    ${detail}
+  </div>`;
+}
+
+// Boot
+loadPipelineData();
+</script>
+</body>
+</html>
