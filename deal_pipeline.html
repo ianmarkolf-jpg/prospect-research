@@ -103,13 +103,15 @@ const TAB_GIDS = {
   'Stats':              '120316244',
   'Full Pipeline':      '1940276407',
   'Pipeline Comps':     '1026517371',
+  'Eddies Script':      '2044354318',
 };
 const EXCLUDE_REASONS = ['Bad neighborhood / zip','Contingent / under contract','Recently flipped / retail finish','Overpriced — no motivation signals','Property type mismatch','Outside buy box','Comp data unreliable','Other'];
-const STAGES = ['review','underwriting','eddie','decision','watchlist','archived','forever_home','premium_reno','full_pipeline'];
+const STAGES = ['review','underwriting','eddie','eddie_brief','decision','watchlist','archived','forever_home','premium_reno','full_pipeline'];
 const STAGE_META = {
   review:        {label:'Review Queue',    sub:'filter & qualify',     watch:false, pipeline:true},
   underwriting:  {label:'Underwriting',    sub:'run numbers',          watch:false, pipeline:true},
   eddie:         {label:"Eddie's List",    sub:'agent calls',          watch:false, pipeline:true},
+  eddie_brief:   {label:"Eddie's Brief",   sub:'call sheet',           watch:false, pipeline:false},
   decision:      {label:'Decision',        sub:'offer / show',         watch:false, pipeline:true},
   watchlist:     {label:'Watch List',      sub:'revisit on reduction', watch:true,  pipeline:true},
   archived:      {label:'Archive',         sub:'excluded',             watch:false, pipeline:true},
@@ -123,6 +125,8 @@ let PROPS = [];
 let FH_PROPS = [];
 let PREM_PROPS = [];
 let FP_PROPS = [];   // Full Pipeline — all scored properties
+let EDDIE_SCRIPT = []; // Eddie's call script rows
+let eddieBriefEmailView = false;
 let dataLoaded = false;
 let loadError = null;
 let COMPS_MAP = {};        // subject_address → [{comp_address, sale_price, sqft, ppsf, condition, distance_mi, sale_date}]
@@ -298,11 +302,12 @@ async function loadPipelineData(){
 
     // Supplemental tabs — non-fatal, degrade gracefully if not yet published
     const safeFetch = async (tabName) => { try{ const r=await fetch(sheetUrl(tabName)); return await r.text(); }catch(e){ console.warn(tabName+' fetch failed:',e.message); return ''; }};
-    const [fhText, premText, statsText, fpText] = await Promise.all([
+    const [fhText, premText, statsText, fpText, escriptText] = await Promise.all([
       safeFetch('Forever Home'),
       safeFetch('Premium Renovation'),
       safeFetch('Stats'),
       safeFetch('Full Pipeline'),
+      safeFetch('Eddies Script'),
     ]);
 
     // Update Stats counters in header
@@ -325,6 +330,30 @@ async function loadPipelineData(){
     const fhRows      = csvToObjects(fhText);
     const premRows    = csvToObjects(premText);
     const fpRows      = csvToObjects(fpText);
+    const escriptRows = csvToObjects(escriptText);
+
+    // Build Eddie Script data
+    EDDIE_SCRIPT = escriptRows.map(r=>({
+      rank:           parseInt(r.priority_rank)||99,
+      label:          r.priority_label||'',
+      address:        r.address||'',
+      listPrice:      parseFloat(r.list_price)||0,
+      arv:            parseFloat(r.arv)||0,
+      maoMod:         parseFloat(r.mao_moderate)||0,
+      gapToMao:       parseFloat(r.gap_to_mao)||0,
+      gapPct:         parseFloat(r.gap_pct)||0,
+      confidence:     r.arv_confidence||'',
+      profitLight:    parseFloat(r.profit_light)||0,
+      profitMod:      parseFloat(r.profit_moderate)||0,
+      profitHeavy:    parseFloat(r.profit_heavy)||0,
+      profitAtList:   parseFloat(r.profit_at_list)||0,
+      motivations:    r.motivation_signals||'',
+      motivationCount:parseInt(r.motivation_count)||0,
+      zillowUrl:      r.zillow_url||'',
+      q1:             r.question_1||'',
+      q2:             r.question_2||'',
+      q3:             r.question_3||'',
+    })).filter(r=>r.address);
 
     // Build Eddie lookup
     const eddieMap = {};
@@ -535,6 +564,7 @@ function callScript(p){
 function getList(){
   if(activeStage==='forever_home') return FH_PROPS.slice().sort((a,b)=>a.tier.localeCompare(b.tier)||(b.arv-a.arv));
   if(activeStage==='premium_reno') return PREM_PROPS.slice().sort((a,b)=>b.netProfit-a.netProfit);
+  if(activeStage==='eddie_brief') return EDDIE_SCRIPT.slice().sort((a,b)=>a.rank-b.rank);
   if(activeStage==='full_pipeline'){
     let list = FP_PROPS.slice();
     if(fpConfFilter!=='All') list=list.filter(p=>p.confidence===fpConfFilter);
@@ -555,6 +585,7 @@ function countStage(s){
   if(s==='forever_home') return FH_PROPS.length;
   if(s==='premium_reno') return PREM_PROPS.length;
   if(s==='full_pipeline') return FP_PROPS.length;
+  if(s==='eddie_brief') return EDDIE_SCRIPT.length;
   return allProps().filter(p=>p.stage===s).length;
 }
 function offerCount(){ return allProps().filter(p=>p.decision==='Submit Offer').length; }
@@ -576,6 +607,7 @@ function render(){
     const cnt = countStage(s);
     const sub = s==='forever_home' ? cnt+' candidates'
               : s==='full_pipeline' ? cnt+' active scored'
+              : s==='eddie_brief' ? cnt+' calls'
               : m.sub;
     return `<div class="tab ${s===activeStage?'active':''} ${m.watch?'watch':''}" onclick="setStage('${s}')" style="${isSpecial?'border-left:1px solid #1e293b;margin-left:4px':''}">
       ${m.label}<span class="badge">${cnt}</span>
@@ -583,7 +615,18 @@ function render(){
     </div>`;
   }).join('');
 
-  if(isFP){
+  const isEB = activeStage==='eddie_brief';
+
+  if(isEB){
+    document.getElementById('filters').innerHTML=`
+      <button class="fbtn ${!eddieBriefEmailView?'active':''}" onclick="eddieBriefEmailView=false;render()">Dashboard View</button>
+      <button class="fbtn ${eddieBriefEmailView?'active':''}" onclick="eddieBriefEmailView=true;render()">Email View</button>
+      <div class="divider"></div>
+      <button class="fbtn" onclick="copyEddieBrief()" title="Copy as plain text for email">📋 Copy All</button>
+      <div class="divider"></div>
+      <button class="fbtn" onclick="refreshData()">⟳ Refresh</button>
+    `;
+  } else if(isFP){
     // Build county options from actual data
     const counties = ['All',...new Set(FP_PROPS.map(p=>p.county).filter(c=>c&&c!=='Other').sort()),'Other'];
     // Build city options — filtered by county if one is selected
@@ -635,6 +678,7 @@ function render(){
       review:'All properties reviewed.',
       forever_home:'No forever home candidates found.',
       premium_reno:'No premium renovation candidates found.',
+      eddie_brief:'No call script properties loaded.',
       full_pipeline:'No properties match current filters.'
     };
     document.getElementById('list').innerHTML=`<div class="empty">${msgs[activeStage]||'No properties in this stage.'}</div>`;
@@ -646,6 +690,8 @@ function render(){
     document.getElementById('list').innerHTML=list.map(p=>renderPremCard(p)).join('');
   } else if(activeStage==='full_pipeline'){
     document.getElementById('list').innerHTML=list.map(p=>renderFPCard(p)).join('');
+  } else if(activeStage==='eddie_brief'){
+    renderEddieBrief(list);
   } else {
     document.getElementById('list').innerHTML=list.map(p=>renderCard(p)).join('');
   }
@@ -936,7 +982,7 @@ async function refreshData(){
 }
 
 function openExclude(id){
-  const p=getProp(id);
+  const p=getProp(id) || FP_PROPS.find(x=>x.id===id) || PREM_PROPS.find(x=>x.id===id);
   if(!p) return;
   const modal=document.getElementById('modal');
   modal.style.display='flex';
@@ -961,6 +1007,29 @@ function doExclude(id){
   const reason=document.getElementById('excl-reason').value;
   if(!reason) return;
   const note=document.getElementById('excl-note').value;
+  // If this is a FP/Prem property not yet in PROPS, promote it first so updateState has a target
+  if(!PROPS.find(x=>x.id===id)){
+    const fp=FP_PROPS.find(x=>x.id===id);
+    const pm=PREM_PROPS.find(x=>x.id===id);
+    const src=fp||pm;
+    if(src && !PROPS.find(x=>x.address===src.address)){
+      const newProp={
+        id:'pp'+PROPS.length, address:src.address,
+        arv:src.arv||src.arvPremium||0, listPrice:src.listPrice,
+        maoLight:src.maoLight||null, maoMod:src.maoMod||null, maoHeavy:src.maoHeavy||null,
+        profit:src.profit||src.netProfit||0, ppsf:src.ppsf||null, compCount:src.compCount||src.excellentComps||0,
+        confidence:src.confidence, track:'Core', ianPriority:false,
+        eddieCall:false, propertyType:src.propertyType||'Single-Family', gapToMao:null,
+        sqft:src.sqft||0,
+        rehabLight:src.rehabLight||0, rehabMod:src.rehabMod||0, rehabHeavy:src.rehabHeavy||0,
+        profitLight:src.profitLight||0, profitHeavy:src.profitHeavy||0,
+        _type:'pipeline'
+      };
+      PROPS.push(newProp);
+      src.inPipeline=true;
+      id=newProp.id;
+    }
+  }
   updateState(id,{stage:'archived',excludeReason:reason,notes:note,decision:'Excluded'});
   closeModal();
 }
@@ -983,6 +1052,81 @@ function doDecision(id,decision){
   const stage=decision==='Watch List'?'watchlist':'decision';
   updateState(id,{stage,decision});
   closeModal();
+}
+
+// --- Eddie's Brief ---
+function renderEddieBrief(list){
+  const em = eddieBriefEmailView;
+  const bg = em?'#ffffff':'#0a0c10';
+  const fg = em?'#1a1a1a':'#e2e8f0';
+  const fg2 = em?'#555555':'#94a3b8';
+  const border = em?'#e5e7eb':'#1e293b';
+  const headerBg = em?'#f3f4f6':'#111318';
+  const rowAlt = em?'#f9fafb':'#0f1117';
+  const motBg = em?'#fef3c7':'#422006';
+  const motFg = em?'#92400e':'#fbbf24';
+  const qBg = em?'#f0f9ff':'#0c1929';
+  const qFg = em?'#1e40af':'#93c5fd';
+  const qBdr = em?'#bfdbfe':'#1e3a5f';
+
+  const fmtD = v => '$'+(v>=0?'':'-')+Math.abs(Math.round(v)).toLocaleString();
+  const rows = list.map((p,i)=>{
+    const rbg = i%2===0?bg:rowAlt;
+    const gapColor = Math.abs(p.gapPct)<=15?(em?'#16a34a':'#4ade80'):Math.abs(p.gapPct)<=25?(em?'#d97706':'#f59e0b'):(em?'#dc2626':'#f87171');
+    const motHtml = p.motivations ? `<div style="margin-top:4px;padding:3px 7px;background:${motBg};color:${motFg};border-radius:3px;font-size:10px;display:inline-block">${p.motivations}</div>` : '';
+    const questions = [p.q1,p.q2,p.q3].filter(Boolean).map((q,qi)=>`<div style="margin-top:${qi===0?'8':'3'}px;padding:5px 8px;background:${qBg};border:1px solid ${qBdr};border-radius:3px;font-size:11px;color:${qFg};line-height:1.4">Q${qi+1}: ${q}</div>`).join('');
+    return `<tr style="background:${rbg};border-bottom:1px solid ${border}">
+      <td style="padding:10px 12px;font-size:11px;color:${fg2};text-align:center;vertical-align:top;white-space:nowrap">${p.rank}</td>
+      <td style="padding:10px 12px;vertical-align:top">
+        <div style="font-size:12px;font-weight:600;color:${fg};margin-bottom:2px">${p.address}</div>
+        <div style="font-size:10px;color:${fg2}">List ${fmtD(p.listPrice)} · ARV ${fmtD(p.arv)} · MAO ${fmtD(p.maoMod)} · ${p.confidence}</div>
+        ${motHtml}
+      </td>
+      <td style="padding:10px 8px;font-size:12px;color:${fg};text-align:right;vertical-align:top;white-space:nowrap">${fmtD(p.listPrice)}</td>
+      <td style="padding:10px 8px;font-size:12px;color:${fg};text-align:right;vertical-align:top;white-space:nowrap">${fmtD(p.arv)}</td>
+      <td style="padding:10px 8px;font-size:12px;color:${fg};text-align:right;vertical-align:top;white-space:nowrap">${fmtD(p.maoMod)}</td>
+      <td style="padding:10px 8px;font-size:12px;font-weight:600;color:${gapColor};text-align:right;vertical-align:top;white-space:nowrap">${p.gapPct.toFixed(1)}%</td>
+      <td style="padding:10px 12px;vertical-align:top;min-width:280px">${questions}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<div style="background:${bg};border-radius:6px;border:1px solid ${border};overflow-x:auto;margin-bottom:20px">
+    <table style="width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace">
+      <thead>
+        <tr style="background:${headerBg};border-bottom:2px solid ${border}">
+          <th style="padding:8px 12px;font-size:9px;color:${fg2};text-align:center;text-transform:uppercase;letter-spacing:0.08em">#</th>
+          <th style="padding:8px 12px;font-size:9px;color:${fg2};text-align:left;text-transform:uppercase;letter-spacing:0.08em">Property</th>
+          <th style="padding:8px 8px;font-size:9px;color:${fg2};text-align:right;text-transform:uppercase;letter-spacing:0.08em">List</th>
+          <th style="padding:8px 8px;font-size:9px;color:${fg2};text-align:right;text-transform:uppercase;letter-spacing:0.08em">ARV</th>
+          <th style="padding:8px 8px;font-size:9px;color:${fg2};text-align:right;text-transform:uppercase;letter-spacing:0.08em">MAO</th>
+          <th style="padding:8px 8px;font-size:9px;color:${fg2};text-align:right;text-transform:uppercase;letter-spacing:0.08em">Gap</th>
+          <th style="padding:8px 12px;font-size:9px;color:${fg2};text-align:left;text-transform:uppercase;letter-spacing:0.08em">Questions</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+
+  document.getElementById('list').innerHTML=html;
+}
+
+function copyEddieBrief(){
+  const list = EDDIE_SCRIPT.slice().sort((a,b)=>a.rank-b.rank);
+  const fmtD = v => '$'+Math.abs(Math.round(v)).toLocaleString();
+  const lines = [`Eddie's Call List — ${new Date().toLocaleDateString()}`, `${list.length} properties`, ''];
+  list.forEach(p=>{
+    lines.push(`#${p.rank} — ${p.address}`);
+    lines.push(`   List: ${fmtD(p.listPrice)}  |  ARV: ${fmtD(p.arv)}  |  MAO: ${fmtD(p.maoMod)}  |  Gap: ${p.gapPct.toFixed(1)}%`);
+    if(p.motivations) lines.push(`   Motivation: ${p.motivations}`);
+    if(p.q1) lines.push(`   Q1: ${p.q1}`);
+    if(p.q2) lines.push(`   Q2: ${p.q2}`);
+    if(p.q3) lines.push(`   Q3: ${p.q3}`);
+    lines.push('');
+  });
+  navigator.clipboard.writeText(lines.join('\n')).then(()=>{
+    const btn=document.querySelector('.fbtn[onclick*="copyEddieBrief"]');
+    if(btn){const orig=btn.textContent;btn.textContent='✓ Copied!';setTimeout(()=>btn.textContent=orig,2000);}
+  });
 }
 
 function closeModal(){document.getElementById('modal').style.display='none';}
@@ -1024,6 +1168,8 @@ function promoteToPipeline(id){
 
 function renderFPCard(p){
   const isExp = expanded===p.id;
+  const fpStateTop=decisions[p.address]||{};
+  const isExcludedTop=fpStateTop.decision==='Excluded';
   const profitColor = p.profit>=75000?'#22c55e':p.profit>=30000?'#4ade80':p.profit>=0?'#f59e0b':'#ef4444';
   const gapColor = p.gap<=15?'#4ade80':p.gap<=25?'#f59e0b':'#f87171';
   const gapLabel = p.gap<=15?'NEGOTIABLE':p.gap<=25?'STRETCH':'PASS';
@@ -1042,14 +1188,19 @@ function renderFPCard(p){
       ['Type',         p.propertyType||'—',    '#64748b'],
     ].map(([l,v,c])=>`<div class="cell"><div class="cell-lbl">${l}</div><div class="cell-val" style="color:${c}">${v}</div></div>`).join('');
     const zilBtn=`<a href="${zillowUrl(p.address)}" target="_blank" class="btn" style="border-color:#1d4ed8;color:#60a5fa;background:#1e3a5f22">↗ Zillow</a>`;
-    const promoteBtn = p.inPipeline
+    const fpState=decisions[p.address]||{};
+    const isExcluded=fpState.decision==='Excluded';
+    const promoteBtn = isExcluded
+      ? `<button class="btn" style="border-color:#7f1d1d;color:#f87171;cursor:default">✓ Excluded</button>`
+      : p.inPipeline
       ? `<button class="btn" style="border-color:#334155;color:#475569;cursor:default">✓ In Pipeline</button>`
       : `<button class="btn" style="border-color:#166534;color:#4ade80;background:#14532d22" onclick="event.stopPropagation();promoteToPipeline('${p.id}')">→ Add to Review Queue</button>`;
+    const exclBtn=isExcluded?'':`<button class="btn" style="border-color:#7f1d1d;color:#f87171;background:#7f1d1d22" onclick="event.stopPropagation();openExclude('${p.id}')">✕ Exclude</button>`;
     detail=`<div class="detail">
       <div class="grid4">${cells}</div>
       ${compsTable(p.address)}
       ${p.sqft>0&&p.rehabMod>0?rehabTable(p):''}
-      <div class="actions">${zilBtn}${promoteBtn}</div>
+      <div class="actions">${zilBtn}${promoteBtn}${exclBtn}</div>
     </div>`;
   }
 
@@ -1066,7 +1217,7 @@ function renderFPCard(p){
       <div class="tags">
         <span class="tag" style="background:${confColor(p.confidence)}22;color:${confColor(p.confidence)};border-color:${confColor(p.confidence)}44">${p.confidence}</span>
         <span class="tag" style="background:${gapColor}22;color:${gapColor};border-color:${gapColor}44">${gapLabel}</span>
-        ${p.inPipeline?`<span class="tag" style="background:#1e3a5f;color:#60a5fa;border-color:#3b82f644">IN PIPELINE</span>`:''}
+        ${isExcludedTop?`<span class="tag" style="background:#7f1d1d22;color:#f87171;border-color:#7f1d1d44">EXCLUDED</span>`:p.inPipeline?`<span class="tag" style="background:#1e3a5f;color:#60a5fa;border-color:#3b82f644">IN PIPELINE</span>`:''}
       </div>
       <div style="color:#334155;font-size:10px;flex-shrink:0">${isExp?'▲':'▼'}</div>
     </div>
