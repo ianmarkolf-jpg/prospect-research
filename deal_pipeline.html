@@ -1089,6 +1089,15 @@ function renderEddieBrief(list){
   const fmtD = v => '$'+(v>=0?'':'-')+Math.abs(Math.round(v)).toLocaleString();
   const th = (label,align='left') => `<th style="padding:7px 10px;font-size:9px;color:${fg2};text-align:${align};text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap">${label}</th>`;
 
+  // Status pill colors
+  const pillCfg = {
+    watchlist:   {label:'WATCHING',     bg:em?'#fef3c7':'#422006', fg:em?'#92400e':'#fbbf24'},
+    archived:    {label:'ARCHIVED',     bg:em?'#fee2e2':'#450a0a', fg:em?'#dc2626':'#f87171'},
+    offered:     {label:'OFFERED',      bg:em?'#dcfce7':'#052e16', fg:em?'#16a34a':'#4ade80'},
+    underwriting:{label:'UNDERWRITING', bg:em?'#dbeafe':'#172554', fg:em?'#2563eb':'#60a5fa'},
+  };
+  const btnSt = `display:inline-block;padding:1px 5px;font-size:8px;font-family:'IBM Plex Mono',monospace;border-radius:3px;cursor:pointer;border:1px solid;white-space:nowrap;margin:0 1px;`;
+
   const rows = list.map((p,i)=>{
     const rbg = i%2===0?bg:rowAlt;
     const city = parseCity(p.address);
@@ -1097,6 +1106,30 @@ function renderEddieBrief(list){
     const sigHtml = signals.length?signals.map(s=>`<span style="display:inline-block;padding:1px 6px;margin:1px 2px;background:${motBg};color:${motFg};border-radius:3px;font-size:9px;white-space:nowrap">${s}</span>`).join(''):`<span style="color:${fg2};font-size:10px">—</span>`;
     const noteVal = (eddieBriefNotes[p.address]||'').replace(/"/g,'&quot;');
     const escapedAddr = p.address.replace(/'/g,"\\'");
+
+    // Determine status from decisions
+    const state = decisions[p.address]||{};
+    const stage = state.stage||'';
+    const dec = state.decision||'';
+    let pillKey = '';
+    if(dec==='Submit Offer') pillKey='offered';
+    else if(stage==='underwriting') pillKey='underwriting';
+    else if(stage==='watchlist') pillKey='watchlist';
+    else if(stage==='archived'||dec==='Excluded') pillKey='archived';
+
+    let statusHtml = '';
+    if(pillKey){
+      const pc = pillCfg[pillKey];
+      statusHtml = `<span style="display:inline-block;padding:1px 6px;font-size:8px;font-weight:600;border-radius:3px;background:${pc.bg};color:${pc.fg};white-space:nowrap;letter-spacing:0.04em">${pc.label}</span>`;
+    }
+
+    // Action buttons — always visible, compact
+    const actionsHtml = `<span style="white-space:nowrap">`
+      +`<span style="${btnSt}background:${em?'#052e16':'#052e16'};color:${em?'#16a34a':'#4ade80'};border-color:${em?'#16a34a33':'#16a34a33'}" onclick="ebAction('${escapedAddr}','offer')" title="Mark as Offered">Offer</span>`
+      +`<span style="${btnSt}background:${em?'#422006':'#422006'};color:${em?'#d97706':'#fbbf24'};border-color:${em?'#d9770633':'#d9770633'}" onclick="ebAction('${escapedAddr}','watch')" title="Add to Watchlist">Watch</span>`
+      +`<span style="${btnSt}background:${em?'#450a0a':'#450a0a'};color:${em?'#dc2626':'#f87171'};border-color:${em?'#dc262633':'#dc262633'}" onclick="ebAction('${escapedAddr}','exclude')" title="Exclude">Excl</span>`
+      +`</span>`;
+
     return `<tr style="background:${rbg};border-bottom:1px solid ${border}">
       <td style="padding:6px 8px;font-size:10px;color:${fg2};text-align:center;vertical-align:middle">${p.rank}</td>
       <td style="padding:6px 10px;font-size:11px;font-weight:600;color:${fg};vertical-align:middle;white-space:nowrap">${p.address.split(',')[0]}</td>
@@ -1106,6 +1139,8 @@ function renderEddieBrief(list){
       <td style="padding:6px 8px;font-size:11px;color:${fg};text-align:right;vertical-align:middle;white-space:nowrap">${fmtK(p.maoMod)}</td>
       <td style="padding:6px 8px;font-size:11px;font-weight:600;color:${gapColor};text-align:right;vertical-align:middle;white-space:nowrap">${p.gapPct.toFixed(0)}%</td>
       <td style="padding:6px 8px;vertical-align:middle">${sigHtml}</td>
+      <td style="padding:4px 6px;vertical-align:middle;text-align:center">${statusHtml}</td>
+      <td style="padding:4px 4px;vertical-align:middle;text-align:center">${actionsHtml}</td>
       <td style="padding:4px 6px;vertical-align:middle"><input type="text" value="${noteVal}" placeholder="—" onchange="saveEddieNote('${escapedAddr}',this.value)" style="width:100%;min-width:100px;padding:3px 6px;font-size:10px;font-family:'IBM Plex Mono',monospace;background:${inputBg};color:${fg};border:1px solid ${inputBdr};border-radius:3px;outline:none"></td>
     </tr>`;
   }).join('');
@@ -1114,7 +1149,7 @@ function renderEddieBrief(list){
     <table style="width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace">
       <thead>
         <tr style="background:${headerBg};border-bottom:2px solid ${border}">
-          ${th('#','center')}${th('Address')}${th('City')}${th('List','right')}${th('ARV','right')}${th('MAO','right')}${th('Gap','right')}${th('Signals')}${th('Notes')}
+          ${th('#','center')}${th('Address')}${th('City')}${th('List','right')}${th('ARV','right')}${th('MAO','right')}${th('Gap','right')}${th('Signals')}${th('Status','center')}${th('Actions','center')}${th('Notes')}
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -1122,6 +1157,37 @@ function renderEddieBrief(list){
   </div>`;
 
   document.getElementById('list').innerHTML=html;
+}
+
+function ebEnsureProp(address){
+  // Find existing PROPS entry by address, or promote from EDDIE_SCRIPT/FP_PROPS
+  let prop = PROPS.find(x=>x.address===address);
+  if(prop) return prop.id;
+  const es = EDDIE_SCRIPT.find(x=>x.address===address);
+  const fp = FP_PROPS.find(x=>x.address===address);
+  const src = fp||es;
+  if(!src) return null;
+  const newProp = {
+    id:'eb'+PROPS.length, address:address,
+    arv:src.arv||0, listPrice:src.listPrice||0,
+    maoLight:src.maoLight||null, maoMod:src.maoMod||0, maoHeavy:src.maoHeavy||null,
+    profit:src.profitMod||src.profit||0, ppsf:src.ppsf||null, compCount:src.compCount||0,
+    confidence:src.confidence||'', track:'Core', ianPriority:false,
+    eddieCall:true, propertyType:src.propertyType||'Single-Family', gapToMao:src.gapToMao||null,
+    sqft:src.sqft||0, rehabLight:src.rehabLight||null, rehabMod:src.rehabMod||null, rehabHeavy:src.rehabHeavy||null,
+    profitLight:src.profitLight||0, profitHeavy:src.profitHeavy||0,
+    _type:'pipeline'
+  };
+  PROPS.push(newProp);
+  return newProp.id;
+}
+
+function ebAction(address, action){
+  const id = ebEnsureProp(address);
+  if(!id) return;
+  if(action==='offer') updateState(id, {stage:'decision', decision:'Submit Offer'});
+  else if(action==='watch') updateState(id, {stage:'watchlist'});
+  else if(action==='exclude') openExclude(id);
 }
 
 function copyEddieBrief(){
