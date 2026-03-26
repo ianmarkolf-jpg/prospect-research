@@ -127,6 +127,8 @@ let PREM_PROPS = [];
 let FP_PROPS = [];   // Full Pipeline — all scored properties
 let EDDIE_SCRIPT = []; // Eddie's call script rows
 let eddieBriefEmailView = false;
+let eddieBriefFilter = 'all'; // 'all' | 'eddie' | 'signal'
+let eddieBriefNotes = {};     // address → note text, persisted in localStorage
 let dataLoaded = false;
 let loadError = null;
 let COMPS_MAP = {};        // subject_address → [{comp_address, sale_price, sqft, ppsf, condition, distance_mi, sale_date}]
@@ -564,7 +566,12 @@ function callScript(p){
 function getList(){
   if(activeStage==='forever_home') return FH_PROPS.slice().sort((a,b)=>a.tier.localeCompare(b.tier)||(b.arv-a.arv));
   if(activeStage==='premium_reno') return PREM_PROPS.slice().sort((a,b)=>b.netProfit-a.netProfit);
-  if(activeStage==='eddie_brief') return EDDIE_SCRIPT.slice().sort((a,b)=>a.rank-b.rank);
+  if(activeStage==='eddie_brief'){
+    let eb = EDDIE_SCRIPT.slice();
+    if(eddieBriefFilter==='eddie') eb=eb.filter(p=>p.label==='PRIORITY'||p.label==='EDDIE');
+    if(eddieBriefFilter==='signal') eb=eb.filter(p=>p.motivationCount>=2);
+    return eb.sort((a,b)=>a.rank-b.rank);
+  }
   if(activeStage==='full_pipeline'){
     let list = FP_PROPS.slice();
     if(fpConfFilter!=='All') list=list.filter(p=>p.confidence===fpConfFilter);
@@ -619,10 +626,16 @@ function render(){
 
   if(isEB){
     document.getElementById('filters').innerHTML=`
-      <button class="fbtn ${!eddieBriefEmailView?'active':''}" onclick="eddieBriefEmailView=false;render()">Dashboard View</button>
-      <button class="fbtn ${eddieBriefEmailView?'active':''}" onclick="eddieBriefEmailView=true;render()">Email View</button>
+      <span class="flabel">View</span>
+      <button class="fbtn ${!eddieBriefEmailView?'active':''}" onclick="eddieBriefEmailView=false;render()">Dashboard</button>
+      <button class="fbtn ${eddieBriefEmailView?'active':''}" onclick="eddieBriefEmailView=true;render()">Email</button>
       <div class="divider"></div>
-      <button class="fbtn" onclick="copyEddieBrief()" title="Copy as plain text for email">📋 Copy All</button>
+      <span class="flabel">Filter</span>
+      <button class="fbtn ${eddieBriefFilter==='all'?'active':''}" onclick="eddieBriefFilter='all';render()">All</button>
+      <button class="fbtn ${eddieBriefFilter==='eddie'?'active':''}" onclick="eddieBriefFilter='eddie';render()">Eddie's List</button>
+      <button class="fbtn ${eddieBriefFilter==='signal'?'active':''}" onclick="eddieBriefFilter='signal';render()">High Signal</button>
+      <div class="divider"></div>
+      <button class="fbtn" onclick="copyEddieBrief()" title="Copy as plain text for email">📋 Copy as Email</button>
       <div class="divider"></div>
       <button class="fbtn" onclick="refreshData()">⟳ Refresh</button>
     `;
@@ -1055,6 +1068,10 @@ function doDecision(id,decision){
 }
 
 // --- Eddie's Brief ---
+// Load persisted notes from localStorage
+try{eddieBriefNotes=JSON.parse(localStorage.getItem('eddieBriefNotes')||'{}');}catch(e){eddieBriefNotes={};}
+function saveEddieNote(addr,val){eddieBriefNotes[addr]=val;localStorage.setItem('eddieBriefNotes',JSON.stringify(eddieBriefNotes));}
+
 function renderEddieBrief(list){
   const em = eddieBriefEmailView;
   const bg = em?'#ffffff':'#0a0c10';
@@ -1065,28 +1082,31 @@ function renderEddieBrief(list){
   const rowAlt = em?'#f9fafb':'#0f1117';
   const motBg = em?'#fef3c7':'#422006';
   const motFg = em?'#92400e':'#fbbf24';
-  const qBg = em?'#f0f9ff':'#0c1929';
-  const qFg = em?'#1e40af':'#93c5fd';
-  const qBdr = em?'#bfdbfe':'#1e3a5f';
+  const inputBg = em?'#f9fafb':'#111318';
+  const inputBdr = em?'#d1d5db':'#1e293b';
 
+  const fmtK = v => {const a=Math.abs(Math.round(v));return '$'+(v<0?'-':'')+(a>=1000?(a/1000).toFixed(0)+'K':a.toLocaleString());};
   const fmtD = v => '$'+(v>=0?'':'-')+Math.abs(Math.round(v)).toLocaleString();
+  const th = (label,align='left') => `<th style="padding:7px 10px;font-size:9px;color:${fg2};text-align:${align};text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap">${label}</th>`;
+
   const rows = list.map((p,i)=>{
     const rbg = i%2===0?bg:rowAlt;
+    const city = parseCity(p.address);
     const gapColor = Math.abs(p.gapPct)<=15?(em?'#16a34a':'#4ade80'):Math.abs(p.gapPct)<=25?(em?'#d97706':'#f59e0b'):(em?'#dc2626':'#f87171');
-    const motHtml = p.motivations ? `<div style="margin-top:4px;padding:3px 7px;background:${motBg};color:${motFg};border-radius:3px;font-size:10px;display:inline-block">${p.motivations}</div>` : '';
-    const questions = [p.q1,p.q2,p.q3].filter(Boolean).map((q,qi)=>`<div style="margin-top:${qi===0?'8':'3'}px;padding:5px 8px;background:${qBg};border:1px solid ${qBdr};border-radius:3px;font-size:11px;color:${qFg};line-height:1.4">Q${qi+1}: ${q}</div>`).join('');
+    const signals = p.motivations?p.motivations.split(',').map(s=>s.trim()).filter(Boolean):[];
+    const sigHtml = signals.length?signals.map(s=>`<span style="display:inline-block;padding:1px 6px;margin:1px 2px;background:${motBg};color:${motFg};border-radius:3px;font-size:9px;white-space:nowrap">${s}</span>`).join(''):`<span style="color:${fg2};font-size:10px">—</span>`;
+    const noteVal = (eddieBriefNotes[p.address]||'').replace(/"/g,'&quot;');
+    const escapedAddr = p.address.replace(/'/g,"\\'");
     return `<tr style="background:${rbg};border-bottom:1px solid ${border}">
-      <td style="padding:10px 12px;font-size:11px;color:${fg2};text-align:center;vertical-align:top;white-space:nowrap">${p.rank}</td>
-      <td style="padding:10px 12px;vertical-align:top">
-        <div style="font-size:12px;font-weight:600;color:${fg};margin-bottom:2px">${p.address}</div>
-        <div style="font-size:10px;color:${fg2}">List ${fmtD(p.listPrice)} · ARV ${fmtD(p.arv)} · MAO ${fmtD(p.maoMod)} · ${p.confidence}</div>
-        ${motHtml}
-      </td>
-      <td style="padding:10px 8px;font-size:12px;color:${fg};text-align:right;vertical-align:top;white-space:nowrap">${fmtD(p.listPrice)}</td>
-      <td style="padding:10px 8px;font-size:12px;color:${fg};text-align:right;vertical-align:top;white-space:nowrap">${fmtD(p.arv)}</td>
-      <td style="padding:10px 8px;font-size:12px;color:${fg};text-align:right;vertical-align:top;white-space:nowrap">${fmtD(p.maoMod)}</td>
-      <td style="padding:10px 8px;font-size:12px;font-weight:600;color:${gapColor};text-align:right;vertical-align:top;white-space:nowrap">${p.gapPct.toFixed(1)}%</td>
-      <td style="padding:10px 12px;vertical-align:top;min-width:280px">${questions}</td>
+      <td style="padding:6px 8px;font-size:10px;color:${fg2};text-align:center;vertical-align:middle">${p.rank}</td>
+      <td style="padding:6px 10px;font-size:11px;font-weight:600;color:${fg};vertical-align:middle;white-space:nowrap">${p.address.split(',')[0]}</td>
+      <td style="padding:6px 8px;font-size:10px;color:${fg2};vertical-align:middle;white-space:nowrap">${city}</td>
+      <td style="padding:6px 8px;font-size:11px;color:${fg};text-align:right;vertical-align:middle;white-space:nowrap">${fmtK(p.listPrice)}</td>
+      <td style="padding:6px 8px;font-size:11px;color:${fg};text-align:right;vertical-align:middle;white-space:nowrap">${fmtK(p.arv)}</td>
+      <td style="padding:6px 8px;font-size:11px;color:${fg};text-align:right;vertical-align:middle;white-space:nowrap">${fmtK(p.maoMod)}</td>
+      <td style="padding:6px 8px;font-size:11px;font-weight:600;color:${gapColor};text-align:right;vertical-align:middle;white-space:nowrap">${p.gapPct.toFixed(0)}%</td>
+      <td style="padding:6px 8px;vertical-align:middle">${sigHtml}</td>
+      <td style="padding:4px 6px;vertical-align:middle"><input type="text" value="${noteVal}" placeholder="—" onchange="saveEddieNote('${escapedAddr}',this.value)" style="width:100%;min-width:100px;padding:3px 6px;font-size:10px;font-family:'IBM Plex Mono',monospace;background:${inputBg};color:${fg};border:1px solid ${inputBdr};border-radius:3px;outline:none"></td>
     </tr>`;
   }).join('');
 
@@ -1094,13 +1114,7 @@ function renderEddieBrief(list){
     <table style="width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace">
       <thead>
         <tr style="background:${headerBg};border-bottom:2px solid ${border}">
-          <th style="padding:8px 12px;font-size:9px;color:${fg2};text-align:center;text-transform:uppercase;letter-spacing:0.08em">#</th>
-          <th style="padding:8px 12px;font-size:9px;color:${fg2};text-align:left;text-transform:uppercase;letter-spacing:0.08em">Property</th>
-          <th style="padding:8px 8px;font-size:9px;color:${fg2};text-align:right;text-transform:uppercase;letter-spacing:0.08em">List</th>
-          <th style="padding:8px 8px;font-size:9px;color:${fg2};text-align:right;text-transform:uppercase;letter-spacing:0.08em">ARV</th>
-          <th style="padding:8px 8px;font-size:9px;color:${fg2};text-align:right;text-transform:uppercase;letter-spacing:0.08em">MAO</th>
-          <th style="padding:8px 8px;font-size:9px;color:${fg2};text-align:right;text-transform:uppercase;letter-spacing:0.08em">Gap</th>
-          <th style="padding:8px 12px;font-size:9px;color:${fg2};text-align:left;text-transform:uppercase;letter-spacing:0.08em">Questions</th>
+          ${th('#','center')}${th('Address')}${th('City')}${th('List','right')}${th('ARV','right')}${th('MAO','right')}${th('Gap','right')}${th('Signals')}${th('Notes')}
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -1111,16 +1125,20 @@ function renderEddieBrief(list){
 }
 
 function copyEddieBrief(){
-  const list = EDDIE_SCRIPT.slice().sort((a,b)=>a.rank-b.rank);
-  const fmtD = v => '$'+Math.abs(Math.round(v)).toLocaleString();
+  let list = EDDIE_SCRIPT.slice();
+  if(eddieBriefFilter==='eddie') list = list.filter(p=>p.label==='PRIORITY'||p.label==='EDDIE');
+  if(eddieBriefFilter==='signal') list = list.filter(p=>p.motivationCount>=2);
+  list.sort((a,b)=>a.rank-b.rank);
+  const fmtK = v => {const a=Math.abs(Math.round(v));return '$'+(v<0?'-':'')+(a>=1000?(a/1000).toFixed(0)+'K':a.toLocaleString());};
   const lines = [`Eddie's Call List — ${new Date().toLocaleDateString()}`, `${list.length} properties`, ''];
-  list.forEach(p=>{
-    lines.push(`#${p.rank} — ${p.address}`);
-    lines.push(`   List: ${fmtD(p.listPrice)}  |  ARV: ${fmtD(p.arv)}  |  MAO: ${fmtD(p.maoMod)}  |  Gap: ${p.gapPct.toFixed(1)}%`);
-    if(p.motivations) lines.push(`   Motivation: ${p.motivations}`);
-    if(p.q1) lines.push(`   Q1: ${p.q1}`);
-    if(p.q2) lines.push(`   Q2: ${p.q2}`);
-    if(p.q3) lines.push(`   Q3: ${p.q3}`);
+  list.forEach((p,i)=>{
+    const city = parseCity(p.address);
+    const street = p.address.split(',')[0];
+    lines.push(`${i+1}. ${street}, ${city}`);
+    lines.push(`   List ${fmtK(p.listPrice)} · ARV ${fmtK(p.arv)} · MAO ${fmtK(p.maoMod)} · Gap ${p.gapPct.toFixed(0)}%`);
+    if(p.motivations) lines.push(`   Signals: ${p.motivations}`);
+    const note = eddieBriefNotes[p.address];
+    if(note) lines.push(`   Notes: ${note}`);
     lines.push('');
   });
   navigator.clipboard.writeText(lines.join('\n')).then(()=>{
